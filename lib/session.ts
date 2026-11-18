@@ -9,6 +9,7 @@ export const SESSION_KEYS = {
   messages: "benefit-check.messages",
   diagnosis: "benefit-check.diagnosis",
   checklist: "benefit-check.checklist",
+  accessCode: "benefit-check.access-code",
 } as const;
 
 const listeners = new Set<() => void>();
