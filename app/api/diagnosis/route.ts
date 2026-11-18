@@ -9,7 +9,9 @@ import {
   type UIMessage,
 } from "ai";
 import { z } from "zod";
+import { ACCESS_CODE_HEADER, INVALID_ACCESS_CODE_MESSAGE } from "@/lib/access-code";
 import { diagnosisSchema } from "@/lib/causes";
+import { clientIp, createRateLimiter, hasValidAccessCode } from "@/lib/demo-guard";
 import { buildSystemPrompt } from "@/lib/diagnosis-prompt";
 import { evaluateAll, todayInKorea } from "@/lib/eligibility";
 import { policies } from "@/lib/policies";
@@ -22,15 +24,17 @@ const MODEL = process.env.ANTHROPIC_MODEL ?? "claude-opus-5-5";
 const MAX_USER_TEXT_LENGTH = 1000;
 const MAX_SUMMARY_LENGTH = 300;
 
+const checkRateLimit = createRateLimiter({ limit: 10, windowMs: 60_000 });
+
 const requestSchema = z.object({
   messages: z.array(z.unknown()).min(1).max(40),
   profile: profileSchema,
 });
 
-function plainError(message: string, status: number) {
+function plainError(message: string, status: number, headers?: Record<string, string>) {
   return new Response(message, {
     status,
-    headers: { "Content-Type": "text/plain; charset=utf-8" },
+    headers: { "Content-Type": "text/plain; charset=utf-8", ...headers },
   });
 }
 
@@ -53,6 +57,18 @@ function describeStreamError(error: unknown) {
 }
 
 export async function POST(request: Request) {
+  // 코드 대입 시도도 함께 막도록 접근 코드보다 먼저 검사한다.
+  const rateLimit = checkRateLimit(clientIp(request.headers));
+  if (!rateLimit.allowed) {
+    return plainError("요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.", 429, {
+      "Retry-After": String(rateLimit.retryAfterSeconds),
+    });
+  }
+
+  if (!hasValidAccessCode(process.env.DEMO_ACCESS_CODE, request.headers.get(ACCESS_CODE_HEADER))) {
+    return plainError(INVALID_ACCESS_CODE_MESSAGE, 401);
+  }
+
   if (!process.env.ANTHROPIC_API_KEY) {
     return plainError(
       "ANTHROPIC_API_KEY가 설정되지 않아 AI 대화를 시작할 수 없습니다. 자격 판정 결과는 그대로 볼 수 있습니다.",

@@ -6,12 +6,18 @@ import { ArrowRight, ChevronDown, RotateCcw, Send } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { z } from "zod";
+import { AccessCodeForm } from "@/components/access-code-form";
 import { EligibilityPanel } from "@/components/eligibility-panel";
 import { MissingProfile } from "@/components/missing-profile";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  ACCESS_CODE_HEADER,
+  encodeAccessCode,
+  INVALID_ACCESS_CODE_MESSAGE,
+} from "@/lib/access-code";
 import { diagnosisSchema, type Diagnosis } from "@/lib/causes";
 import { buildOpener } from "@/lib/diagnosis-prompt";
 import { evaluateAll, todayInKorea } from "@/lib/eligibility";
@@ -35,6 +41,13 @@ const QUICK_REPLIES = [
 
 const FINISH_MESSAGE = "지금까지 이야기한 내용으로 진단을 마무리해 주세요.";
 const MAX_INPUT_LENGTH = 500;
+
+const accessCodeSchema = z.string().min(1);
+
+function accessCodeHeaders(): Record<string, string> {
+  const code = readSession(SESSION_KEYS.accessCode, accessCodeSchema);
+  return code ? { [ACCESS_CODE_HEADER]: encodeAccessCode(code) } : {};
+}
 
 const storedMessagesSchema = z.array(
   z.looseObject({
@@ -80,12 +93,18 @@ function Bubble({ role, children }: { role: "user" | "assistant"; children: Reac
   );
 }
 
-function Chat({ profile }: { profile: Profile }) {
+function Chat({ profile, accessCodeRequired }: { profile: Profile; accessCodeRequired: boolean }) {
   const results = useMemo(() => evaluateAll(policies, profile, todayInKorea()), [profile]);
   const transport = useMemo(
-    () => new DefaultChatTransport({ api: "/api/diagnosis", body: { profile } }),
+    () =>
+      new DefaultChatTransport({
+        api: "/api/diagnosis",
+        body: { profile },
+        headers: accessCodeHeaders,
+      }),
     [profile],
   );
+  const { value: accessCode } = useSessionValue(SESSION_KEYS.accessCode, accessCodeSchema);
   const [initialMessages] = useState(
     () => (readSession(SESSION_KEYS.messages, storedMessagesSchema) ?? []) as UIMessage[],
   );
@@ -99,6 +118,8 @@ function Chat({ profile }: { profile: Profile }) {
   const busy = status === "submitted" || status === "streaming";
   const diagnosis = useMemo(() => findDiagnosis(messages), [messages]);
   const hasUserMessage = messages.some((message) => message.role === "user");
+  const codeRejected = error?.message === INVALID_ACCESS_CODE_MESSAGE;
+  const locked = !diagnosis && (codeRejected || (accessCodeRequired && !accessCode));
   const lastMessage = messages.at(-1);
   const emptyReply =
     status === "ready" &&
@@ -115,16 +136,27 @@ function Chat({ profile }: { profile: Profile }) {
   }, [diagnosis]);
 
   useEffect(() => {
+    if (codeRejected) clearSession(SESSION_KEYS.accessCode);
+  }, [codeRejected]);
+
+  useEffect(() => {
     const element = scrollRef.current;
     if (element) element.scrollTop = element.scrollHeight;
   }, [messages, status, error]);
 
   const send = (text: string) => {
     const trimmed = text.trim();
-    if (!trimmed || busy || diagnosis) return;
+    if (!trimmed || busy || diagnosis || locked) return;
     clearError();
     setInput("");
     void sendMessage({ text: trimmed });
+  };
+
+  const submitAccessCode = (code: string) => {
+    writeSession(SESSION_KEYS.accessCode, code);
+    clearError();
+    // 코드가 틀려 전송되지 못한 메시지가 있으면 새 코드로 이어서 보낸다.
+    if (messages.at(-1)?.role === "user") void regenerate();
   };
 
   const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -170,7 +202,7 @@ function Chat({ profile }: { profile: Profile }) {
         <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto px-4 py-4" aria-live="polite">
           <Bubble role="assistant">{buildOpener(results)}</Bubble>
 
-          {!hasUserMessage && (
+          {!hasUserMessage && !locked && (
             <div className="flex flex-wrap gap-2">
               {QUICK_REPLIES.map((reply) => (
                 <Button
@@ -201,7 +233,7 @@ function Chat({ profile }: { profile: Profile }) {
             </p>
           )}
 
-          {(error || emptyReply) && (
+          {(error || emptyReply) && !locked && (
             <Alert variant="destructive">
               <AlertDescription className="grid gap-2">
                 <span>{error?.message || "답변을 완성하지 못했어요. 다시 시도해 주세요."}</span>
@@ -224,7 +256,9 @@ function Chat({ profile }: { profile: Profile }) {
           )}
         </div>
 
-        {!diagnosis && (
+        {locked && <AccessCodeForm rejected={codeRejected} onSubmit={submitAccessCode} />}
+
+        {!diagnosis && !locked && (
           <div className="border-t p-3">
             <div className="flex items-end gap-2">
               <Textarea
@@ -280,9 +314,9 @@ function Chat({ profile }: { profile: Profile }) {
   );
 }
 
-export function DiagnosisChat() {
+export function DiagnosisChat({ accessCodeRequired }: { accessCodeRequired: boolean }) {
   const { ready, value } = useSessionValue(SESSION_KEYS.profile, profileSchema);
   if (!ready) return <div className="h-96 animate-pulse rounded-xl bg-muted" aria-hidden />;
   if (!value) return <MissingProfile />;
-  return <Chat profile={value} />;
+  return <Chat profile={value} accessCodeRequired={accessCodeRequired} />;
 }
