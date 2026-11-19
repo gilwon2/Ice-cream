@@ -128,16 +128,6 @@ main:focus {
   font-size: 15px;
 }
 
-.badge {
-  flex: none;
-  padding: 3px 10px;
-  border-radius: 999px;
-  background: var(--blue-soft);
-  color: var(--blue-dark);
-  font-size: 13px;
-  font-weight: 600;
-}
-
 .hero {
   padding: 44px 0 48px;
   background: var(--navy);

@@ -69,7 +69,6 @@ export function PolicyHelper() {
             </span>
             청년정책 신청 도우미
           </span>
-          <span className="badge">인터랙티브 MVP 예시</span>
         </div>
       </header>
 
