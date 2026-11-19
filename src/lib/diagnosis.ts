@@ -1,30 +1,26 @@
-import type { Policy, RequiredDocument } from "../data/policies";
+import type { Advisory, Policy, QuestionGroup, RequiredDocument } from "@/data/policies";
+import {
+  applicationState,
+  applies,
+  evaluateRules,
+  isQuestionVisible,
+  matchWhen,
+  type Answers,
+  type ApplicationState,
+  type EvaluationContext,
+  type Question,
+  type RuleResult,
+} from "@/lib/rules";
 
 export type Blocker = "documents" | "eligibility" | "unclear";
-
-export type Profile = {
-  age: string;
-  region: string;
-  monthlyIncome: string;
-  status: string;
-};
 
 export type DiagnosisInput = {
   policy: Policy;
   blocker: Blocker | null;
-  profile: Profile;
+  answers: Answers;
   checkedDocumentIds: string[];
   inquiryResolved: boolean;
-};
-
-export type ConditionStatus = "MET" | "NOT_MET" | "UNKNOWN";
-
-export type ConditionResult = {
-  id: "age" | "region" | "income";
-  label: string;
-  status: ConditionStatus;
-  criterion: string;
-  detail: string;
+  now: Date;
 };
 
 export type Route = "INELIGIBLE" | "NEEDS_INQUIRY" | "ACTION_REQUIRED" | "READY";
@@ -36,111 +32,53 @@ export type ProgressItem = {
 };
 
 export type Diagnosis = {
-  conditions: ConditionResult[];
+  /** 모든 규칙의 판정. 해당 없는 조건(NOT_APPLICABLE)도 포함한다. */
+  conditions: RuleResult[];
+  documents: RequiredDocument[];
   missingDocuments: RequiredDocument[];
   items: ProgressItem[];
   percent: number;
   remaining: number;
   route: Route;
+  application: ApplicationState;
   canApply: boolean;
+  advisories: Advisory[];
 };
 
-function parseAmount(value: string): number | null {
-  const trimmed = value.trim();
-  if (trimmed === "") return null;
-  const parsed = Number(trimmed);
-  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+export function evaluationContext(policy: Policy, answers: Answers, now: Date): EvaluationContext {
+  return { questions: policy.questions, answers, now };
 }
 
-const WON_PER_MANWON = 10000;
-
-/** 만 원 단위 입력을 원 단위 정수로 바꾼다. 유효하지 않으면 null을 돌려준다. */
-export function manwonToWon(value: string): number | null {
-  const amount = parseAmount(value);
-  if (amount === null) return null;
-  const won = Math.round(amount * WON_PER_MANWON);
-  return Number.isSafeInteger(won) ? won : null;
+/** 확인되지 않은 기준의 미충족은 확정하지 않고 확인 필요로 본다. */
+function isConfirmedNotMet(condition: RuleResult): boolean {
+  return condition.status === "NOT_MET" && condition.verified;
 }
 
-/** 원 단위 정수를 소수 오차 없는 만 원 단위 문자열로 바꾼다. */
-export function formatManwon(won: number): string {
-  const manwon = Math.trunc(won / WON_PER_MANWON);
-  const rest = won % WON_PER_MANWON;
-  if (rest === 0) return String(manwon);
-  const decimals = String(rest).padStart(4, "0").replace(/0+$/, "");
-  return `${manwon}.${decimals}`;
+function progressState(condition: RuleResult): ProgressItem["state"] {
+  if (condition.status === "MET") return "done";
+  if (condition.status === "NOT_MET") return "blocked";
+  return "todo";
 }
-
-function evaluateAge(policy: Policy, value: string): ConditionResult {
-  const criterion = `만 ${policy.minAge}~${policy.maxAge}세`;
-  const base = { id: "age", label: "연령", criterion } as const;
-  const age = parseAmount(value);
-
-  if (age === null || !Number.isInteger(age)) {
-    return { ...base, status: "UNKNOWN", detail: "만 나이를 입력해 주세요" };
-  }
-  if (age < policy.minAge || age > policy.maxAge) {
-    return { ...base, status: "NOT_MET", detail: `만 ${age}세는 기준 범위 밖으로 보여요` };
-  }
-  return { ...base, status: "MET", detail: `만 ${age}세는 기준 범위 안으로 보여요` };
-}
-
-function evaluateRegion(policy: Policy, region: string): ConditionResult {
-  const base = { id: "region", label: "거주지", criterion: policy.regionLabel } as const;
-
-  if (region === "") {
-    return { ...base, status: "UNKNOWN", detail: "거주지역을 선택해 주세요" };
-  }
-  if (policy.regions !== null && !policy.regions.includes(region)) {
-    return { ...base, status: "NOT_MET", detail: `${region}은(는) 대상 지역이 아닌 것으로 보여요` };
-  }
-  return { ...base, status: "MET", detail: `${region}은(는) 대상 지역으로 보여요` };
-}
-
-function evaluateIncome(policy: Policy, value: string): ConditionResult {
-  const criterion = `월 ${policy.maxMonthlyIncome}만 원 이하`;
-  const base = { id: "income", label: "월소득", criterion } as const;
-  const incomeWon = manwonToWon(value);
-  const limitWon = policy.maxMonthlyIncome * WON_PER_MANWON;
-
-  if (incomeWon === null) {
-    return { ...base, status: "UNKNOWN", detail: "월소득을 입력해 주세요" };
-  }
-  if (incomeWon > limitWon) {
-    const gap = formatManwon(incomeWon - limitWon);
-    return { ...base, status: "NOT_MET", detail: `기준보다 ${gap}만 원 많은 것으로 보여요` };
-  }
-  return {
-    ...base,
-    status: "MET",
-    detail: `월 ${formatManwon(incomeWon)}만 원은 기준 이내로 보여요`,
-  };
-}
-
-const CONDITION_STATE: Record<ConditionStatus, ProgressItem["state"]> = {
-  MET: "done",
-  NOT_MET: "blocked",
-  UNKNOWN: "todo",
-};
 
 export function diagnose(input: DiagnosisInput): Diagnosis {
-  const { policy, blocker, profile, checkedDocumentIds, inquiryResolved } = input;
+  const { policy, blocker, answers, checkedDocumentIds, inquiryResolved, now } = input;
+  const context = evaluationContext(policy, answers, now);
 
-  const conditions = [
-    evaluateAge(policy, profile.age),
-    evaluateRegion(policy, profile.region),
-    evaluateIncome(policy, profile.monthlyIncome),
-  ];
-  const missingDocuments = policy.documents.filter(
+  const conditions = evaluateRules(policy.rules, context);
+  const applicable = conditions.filter((condition) => condition.status !== "NOT_APPLICABLE");
+  const documents = policy.documents.filter((document) =>
+    applies(document.appliesWhen, answers, now),
+  );
+  const missingDocuments = documents.filter(
     (document) => !checkedDocumentIds.includes(document.id),
   );
   const inquiryPending = blocker === "unclear" && !inquiryResolved;
 
   const items: ProgressItem[] = [
-    ...conditions.map((condition) => ({
-      id: condition.id,
-      label: `${condition.label} 조건`,
-      state: CONDITION_STATE[condition.status],
+    ...applicable.map((condition) => ({
+      id: condition.ruleId,
+      label: condition.label,
+      state: progressState(condition),
     })),
     ...(blocker === "unclear"
       ? [
@@ -151,7 +89,7 @@ export function diagnose(input: DiagnosisInput): Diagnosis {
           },
         ]
       : []),
-    ...policy.documents.map((document) => ({
+    ...documents.map((document) => ({
       id: document.id,
       label: document.label,
       state: checkedDocumentIds.includes(document.id) ? ("done" as const) : ("todo" as const),
@@ -159,24 +97,60 @@ export function diagnose(input: DiagnosisInput): Diagnosis {
   ];
 
   const doneCount = items.filter((item) => item.state === "done").length;
-  const percent = Math.floor((doneCount / items.length) * 100);
+  const percent = items.length === 0 ? 0 : Math.floor((doneCount / items.length) * 100);
 
   let route: Route = "READY";
-  if (conditions.some((condition) => condition.status === "NOT_MET")) {
+  if (applicable.some(isConfirmedNotMet)) {
     route = "INELIGIBLE";
-  } else if (inquiryPending || conditions.some((condition) => condition.status === "UNKNOWN")) {
+  } else if (inquiryPending || applicable.some((condition) => condition.status !== "MET")) {
     route = "NEEDS_INQUIRY";
   } else if (missingDocuments.length > 0) {
     route = "ACTION_REQUIRED";
   }
 
+  const application = applicationState(policy.application, now);
+
   return {
     conditions,
+    documents,
     missingDocuments,
     items,
     percent,
     remaining: items.length - doneCount,
     route,
-    canApply: route === "READY" && percent === 100,
+    application,
+    canApply: route === "READY" && percent === 100 && application.status === "open",
+    // 안내는 조건이 확실히 참일 때만 띄운다.
+    advisories: policy.advisories.filter(
+      (advisory) => matchWhen(advisory.appliesWhen, answers, now) === true,
+    ),
   };
+}
+
+/**
+ * 기관 문의문을 보여줄지 정한다.
+ * "조건이 애매해요"를 골랐거나, 판정 결과가 추가 확인 필요이면 보여준다.
+ * 확인된 기준에 맞지 않는 경우(INELIGIBLE)에는 문의문 대신 개선 제안문을 보여준다.
+ */
+export function shouldShowInquiry(blocker: Blocker | null, route: Route): boolean {
+  if (route === "INELIGIBLE") return false;
+  return blocker === "unclear" || route === "NEEDS_INQUIRY";
+}
+
+export type QuestionPage = {
+  group: QuestionGroup;
+  questions: Question[];
+};
+
+/** 지금 답에 해당하는 질문만 남기고, 빈 묶음은 뺀다. */
+export function questionPages(policy: Policy, answers: Answers, now: Date): QuestionPage[] {
+  return policy.questionGroups
+    .map((group) => ({
+      group,
+      questions: group.questionIds
+        .map((id) => policy.questions.find((question) => question.id === id))
+        .filter((question): question is Question => Boolean(question))
+        .filter((question) => isQuestionVisible(question, answers, now)),
+    }))
+    .filter((page) => page.questions.length > 0);
 }

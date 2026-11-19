@@ -7,19 +7,25 @@ type ApplyActionProps = {
   diagnosis: Diagnosis;
 };
 
+function reasonFor(diagnosis: Diagnosis): string {
+  if (diagnosis.route === "INELIGIBLE") {
+    return "입력한 내용으로는 충족하지 못한 것으로 보이는 조건이 있어요.";
+  }
+  if (diagnosis.application.status !== "open") {
+    return `${diagnosis.application.label}. 다음 공고를 기다려 주세요.`;
+  }
+  return `남은 항목 ${diagnosis.remaining}개를 완료하면 신청 버튼이 열려요.`;
+}
+
 export function ApplyAction({ policy, diagnosis }: ApplyActionProps) {
   if (!diagnosis.canApply) {
-    const reason =
-      diagnosis.route === "INELIGIBLE"
-        ? "입력한 내용으로는 충족하지 못한 것으로 보이는 조건이 있어요."
-        : `남은 항목 ${diagnosis.remaining}개를 완료하면 신청 버튼이 열려요.`;
-
+    const closed = diagnosis.application.status !== "open";
     return (
       <div className="apply">
         <button type="button" className="button button-primary button-block" disabled>
-          신청하기
+          {closed ? diagnosis.application.title : "신청하기"}
         </button>
-        <p className="hint">{reason}</p>
+        <p className="hint">{reasonFor(diagnosis)}</p>
       </div>
     );
   }
@@ -36,10 +42,6 @@ export function ApplyAction({ policy, diagnosis }: ApplyActionProps) {
         <span className="sr-only">(새 탭에서 열림)</span>
       </a>
       <OfficialSiteNotice />
-      <p className="hint">
-        가상 정책이므로 같은 분야의 공식 사이트로 연결합니다. 실제 정책과 자격은 해당 사이트에서
-        확인해 주세요.
-      </p>
     </div>
   );
 }

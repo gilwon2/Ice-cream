@@ -5,7 +5,7 @@ import type { RequiredDocument } from "@/data/policies";
 import { OfficialSiteNotice } from "./OfficialSiteNotice";
 
 type DocumentChecklistProps = {
-  documents: RequiredDocument[];
+  documents: readonly RequiredDocument[];
   checkedIds: string[];
   onToggle: (id: string) => void;
 };

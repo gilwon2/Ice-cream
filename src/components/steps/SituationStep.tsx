@@ -1,12 +1,8 @@
-import type { ReactNode } from "react";
-import {
-  EMPLOYMENT_STATUSES,
-  INQUIRY_TOPICS,
-  REGIONS,
-  type Policy,
-} from "@/data/policies";
-import type { Blocker, ConditionResult, Profile } from "@/lib/diagnosis";
+import { INQUIRY_TOPICS, type Policy, type RequiredDocument } from "@/data/policies";
+import { questionPages, type Blocker } from "@/lib/diagnosis";
+import { primaryQuestionId, type Answers, type Question, type RuleResult } from "@/lib/rules";
 import { DocumentChecklist } from "../DocumentChecklist";
+import { QuestionField } from "../QuestionField";
 
 const NOTE_COPY: Record<Blocker, { label: string; placeholder: string }> = {
   documents: {
@@ -23,224 +19,197 @@ const NOTE_COPY: Record<Blocker, { label: string; placeholder: string }> = {
   },
 };
 
-const SAMPLE_PROFILE: Profile = {
-  age: "25",
-  region: "서울",
-  monthlyIncome: "280",
-  status: "미취업",
-};
-
 type SituationStepProps = {
   policy: Policy;
   blocker: Blocker;
-  profile: Profile;
-  conditions: ConditionResult[];
+  answers: Answers;
+  now: Date;
+  conditions: RuleResult[];
+  documents: RequiredDocument[];
   checkedDocumentIds: string[];
   inquiryTopic: string;
   note: string;
-  onProfileChange: (profile: Profile) => void;
+  page: number;
+  onAnswer: (questionId: string, value: string) => void;
   onToggleDocument: (id: string) => void;
   onInquiryTopicChange: (topic: string) => void;
   onNoteChange: (note: string) => void;
+  onPageChange: (page: number) => void;
+  /** 설명 카드의 "문의문 작성으로 이동" */
+  onRequestInquiry: (ruleId: string) => void;
+  /** 설명 카드를 열어 본 조건 기록 */
+  onExplanationViewed: (ruleId: string) => void;
   onBack: () => void;
   onNext: () => void;
 };
 
-function ConditionHint({ condition }: { condition?: ConditionResult }) {
-  if (!condition) return null;
-  return (
-    <p className={`field-hint is-${condition.status.toLowerCase()}`}>
-      기준 {condition.criterion} · {condition.detail}
-    </p>
-  );
-}
+type Page =
+  | { kind: "questions"; title: string; description?: string; questions: Question[] }
+  | { kind: "prepare"; title: string };
 
 export function SituationStep({
   policy,
   blocker,
-  profile,
+  answers,
+  now,
   conditions,
+  documents,
   checkedDocumentIds,
   inquiryTopic,
   note,
-  onProfileChange,
+  page,
+  onAnswer,
   onToggleDocument,
   onInquiryTopicChange,
   onNoteChange,
+  onPageChange,
+  onRequestInquiry,
+  onExplanationViewed,
   onBack,
   onNext,
 }: SituationStepProps) {
-  const update = (key: keyof Profile, value: string) =>
-    onProfileChange({ ...profile, [key]: value });
-  const conditionOf = (id: ConditionResult["id"]) =>
-    conditions.find((condition) => condition.id === id);
+  const prepare: Page = {
+    kind: "prepare",
+    title: blocker === "unclear" ? "서류와 문의 준비" : "제출서류 준비",
+  };
+  const questionList: Page[] = questionPages(policy, answers, now).map((item) => ({
+    kind: "questions",
+    title: item.group.title,
+    description: item.group.description,
+    questions: item.questions,
+  }));
+  // 서류가 막힌 경우에는 서류부터 보여준다.
+  const pages = blocker === "documents" ? [prepare, ...questionList] : [...questionList, prepare];
+  const index = Math.min(page, pages.length - 1);
+  const current = pages[index];
+  const isLast = index === pages.length - 1;
 
-  const eligibilitySection: ReactNode = (
-    <section className="section" key="eligibility">
-      <div className="section-head">
-        <div>
-          <h3>자격 조건 확인</h3>
-          <p className="muted">정책에서 명확하게 비교할 수 있는 조건부터 확인합니다.</p>
-        </div>
-        <button
-          type="button"
-          className="button button-ghost button-small"
-          onClick={() => onProfileChange(SAMPLE_PROFILE)}
-        >
-          예시 값 채우기
-        </button>
-      </div>
+  const hintsFor = (question: Question) =>
+    policy.rules
+      .filter((rule) => primaryQuestionId(rule) === question.id)
+      .map((rule) => conditions.find((condition) => condition.ruleId === rule.id))
+      .filter(
+        (condition): condition is RuleResult =>
+          Boolean(condition) && condition?.status !== "NOT_APPLICABLE",
+      );
 
-      <div className="form-grid">
-        <div className="field">
-          <label className="field-label" htmlFor="age">
-            만 나이
-          </label>
-          <div className="input-unit">
-            <input
-              id="age"
-              type="number"
-              inputMode="numeric"
-              min={0}
-              placeholder="25"
-              value={profile.age}
-              onChange={(event) => update("age", event.target.value)}
-            />
-            <span>세</span>
-          </div>
-          <ConditionHint condition={conditionOf("age")} />
-        </div>
+  // 질문마다 그 질문을 주로 묻는 규칙을 설명 카드로 연결한다.
+  const explainFor = (question: Question) => {
+    const rule = policy.rules.find((item) => primaryQuestionId(item) === question.id);
+    return rule
+      ? { policy, rule, answers, onRequestInquiry, onViewed: onExplanationViewed }
+      : undefined;
+  };
 
-        <div className="field">
-          <label className="field-label" htmlFor="region">
-            거주지역
-          </label>
-          <select
-            id="region"
-            value={profile.region}
-            onChange={(event) => update("region", event.target.value)}
-          >
-            <option value="">선택해 주세요</option>
-            {REGIONS.map((region) => (
-              <option key={region} value={region}>
-                {region}
-              </option>
-            ))}
-          </select>
-          <ConditionHint condition={conditionOf("region")} />
-        </div>
-
-        <div className="field">
-          <label className="field-label" htmlFor="income">
-            월소득
-          </label>
-          <div className="input-unit">
-            <input
-              id="income"
-              type="number"
-              inputMode="numeric"
-              min={0}
-              placeholder="280"
-              value={profile.monthlyIncome}
-              onChange={(event) => update("monthlyIncome", event.target.value)}
-            />
-            <span>만 원</span>
-          </div>
-          <ConditionHint condition={conditionOf("income")} />
-        </div>
-
-        <div className="field">
-          <label className="field-label" htmlFor="status">
-            현재 상태
-          </label>
-          <select
-            id="status"
-            value={profile.status}
-            onChange={(event) => update("status", event.target.value)}
-          >
-            <option value="">선택해 주세요</option>
-            {EMPLOYMENT_STATUSES.map((status) => (
-              <option key={status} value={status}>
-                {status}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-    </section>
-  );
-
-  const documentsSection: ReactNode = (
-    <section className="section" key="documents">
-      <h3>제출서류 체크리스트</h3>
-      <p className="muted">
-        준비가 끝난 서류에 체크하세요. 발급 사이트에서 서류를 받은 뒤 이 화면으로 돌아와 직접
-        체크하면 진행률이 올라갑니다.
-      </p>
-      <DocumentChecklist
-        documents={policy.documents}
-        checkedIds={checkedDocumentIds}
-        onToggle={onToggleDocument}
-      />
-    </section>
-  );
-
-  const inquirySection: ReactNode = (
-    <section className="section" key="inquiry">
-      <h3>확인이 필요한 주제</h3>
-      <p className="muted">정확하게 판단하기 어려운 부분을 선택해 주세요.</p>
-      <div className="pill-group" role="radiogroup" aria-label="확인이 필요한 주제">
-        {INQUIRY_TOPICS.map((topic) => (
-          <label key={topic} className={`pill${inquiryTopic === topic ? " is-selected" : ""}`}>
-            <input
-              type="radio"
-              name="inquiry-topic"
-              checked={inquiryTopic === topic}
-              onChange={() => onInquiryTopicChange(topic)}
-            />
-            {topic}
-          </label>
-        ))}
-      </div>
-    </section>
-  );
-
-  const sections =
-    blocker === "documents"
-      ? [documentsSection, eligibilitySection]
-      : blocker === "eligibility"
-        ? [eligibilitySection, documentsSection]
-        : [inquirySection, eligibilitySection, documentsSection];
+  const goNext = () => (isLast ? onNext() : onPageChange(index + 1));
 
   return (
-    <>
-      <p className="eyebrow">STEP 03</p>
-      <h2 className="panel-title">지금 상황을 확인해 주세요</h2>
+    // 입력칸에서 Enter를 누르면 다음 단계로 넘어간다.
+    <form
+      noValidate
+      onSubmit={(event) => {
+        event.preventDefault();
+        goNext();
+      }}
+    >
+      <p className="eyebrow">
+        STEP 03 · {index + 1}/{pages.length}
+      </p>
+      <h2 className="panel-title">{current.title}</h2>
 
-      {sections}
+      {current.kind === "questions" ? (
+        <>
+          {current.description && <p className="muted">{current.description}</p>}
+          <div className="question-list">
+            {current.questions.map((question) => (
+              <QuestionField
+                key={question.id}
+                question={question}
+                value={answers[question.id] ?? ""}
+                now={now}
+                onChange={(value) => onAnswer(question.id, value)}
+                hints={hintsFor(question)}
+                explain={explainFor(question)}
+              />
+            ))}
+          </div>
+          <p className="hint">
+            모르는 항목은 &lsquo;모르겠어요&rsquo;를 고르거나 비워 두세요. 결과 화면에서 확인 방법을
+            알려드려요.
+          </p>
+        </>
+      ) : (
+        <>
+          <section className="section section-first">
+            <h3>제출서류 체크리스트</h3>
+            <p className="muted">
+              준비가 끝난 서류에 체크하세요. 발급 사이트에서 서류를 받은 뒤 이 화면으로 돌아와 직접
+              체크하면 진행률이 올라갑니다.
+            </p>
+            {!policy.documentsVerified && (
+              <p className="callout callout-small">
+                서류 목록은 {policy.documentsSource.name} 안내를 바탕으로 했어요. 신청 전에 공고에서
+                최종 확인해 주세요.
+              </p>
+            )}
+            <DocumentChecklist
+              documents={documents}
+              checkedIds={checkedDocumentIds}
+              onToggle={onToggleDocument}
+            />
+          </section>
 
-      <section className="section">
-        <label className="field-label" htmlFor="note">
-          {NOTE_COPY[blocker].label}
-        </label>
-        <textarea
-          id="note"
-          rows={3}
-          placeholder={NOTE_COPY[blocker].placeholder}
-          value={note}
-          onChange={(event) => onNoteChange(event.target.value)}
-        />
-        <p className="hint">이름, 연락처, 주민등록번호 같은 개인정보는 입력하지 마세요.</p>
-      </section>
+          {blocker === "unclear" && (
+            <section className="section">
+              <h3>확인이 필요한 주제</h3>
+              <p className="muted">정확하게 판단하기 어려운 부분을 선택해 주세요.</p>
+              <div className="pill-group" role="radiogroup" aria-label="확인이 필요한 주제">
+                {INQUIRY_TOPICS.map((topic) => (
+                  <label
+                    key={topic}
+                    className={`pill${inquiryTopic === topic ? " is-selected" : ""}`}
+                  >
+                    <input
+                      type="radio"
+                      name="inquiry-topic"
+                      checked={inquiryTopic === topic}
+                      onChange={() => onInquiryTopicChange(topic)}
+                    />
+                    {topic}
+                  </label>
+                ))}
+              </div>
+            </section>
+          )}
+
+          <section className="section">
+            <label className="field-label" htmlFor="note">
+              {NOTE_COPY[blocker].label}
+            </label>
+            <textarea
+              id="note"
+              rows={3}
+              placeholder={NOTE_COPY[blocker].placeholder}
+              value={note}
+              onChange={(event) => onNoteChange(event.target.value)}
+            />
+            <p className="hint">이름, 연락처, 주민등록번호 같은 개인정보는 입력하지 마세요.</p>
+          </section>
+        </>
+      )}
 
       <div className="actions">
-        <button type="button" className="button button-ghost" onClick={onBack}>
+        <button
+          type="button"
+          className="button button-ghost"
+          onClick={() => (index === 0 ? onBack() : onPageChange(index - 1))}
+        >
           ← 이전
         </button>
-        <button type="button" className="button button-primary" onClick={onNext}>
-          진단 결과 확인 →
+        <button type="submit" className="button button-primary">
+          {isLast ? "진단 결과 확인 →" : "다음 →"}
         </button>
       </div>
-    </>
+    </form>
   );
 }

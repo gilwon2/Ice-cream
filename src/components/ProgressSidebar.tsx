@@ -1,6 +1,8 @@
 import type { Policy } from "@/data/policies";
 import type { Diagnosis, ProgressItem } from "@/lib/diagnosis";
+import { formatIsoDate } from "@/lib/rules";
 import { ApplyAction } from "./ApplyAction";
+import { SourceLink } from "./SourceLink";
 
 const STATE_LABEL: Record<ProgressItem["state"], string> = {
   done: "완료",
@@ -30,6 +32,8 @@ export function ProgressSidebar({ policy, diagnosis }: ProgressSidebarProps) {
       </aside>
     );
   }
+
+  const { application } = diagnosis;
 
   return (
     <aside className="sidebar" id="progress-panel">
@@ -72,29 +76,33 @@ export function ProgressSidebar({ policy, diagnosis }: ProgressSidebarProps) {
         <h2 className="card-title" id="policy-info-title">
           {policy.name}
         </h2>
-        <p className="tag">가상 데이터</p>
+        <p className={`tag${application.status === "open" ? " tag-success" : ""}`}>
+          {application.title}
+        </p>
         <dl className="facts">
           <div>
-            <dt>연령</dt>
-            <dd>
-              만 {policy.minAge}~{policy.maxAge}세
-            </dd>
+            <dt>지원 내용</dt>
+            <dd>{policy.benefit}</dd>
           </div>
           <div>
-            <dt>거주지</dt>
-            <dd>{policy.regionLabel}</dd>
-          </div>
-          <div>
-            <dt>월소득 기준</dt>
-            <dd>{policy.maxMonthlyIncome}만 원 이하</dd>
-          </div>
-          <div>
-            <dt>제출서류</dt>
-            <dd>{policy.documents.map((document) => document.label).join(", ")}</dd>
+            <dt>신청 기간</dt>
+            <dd>{application.label}</dd>
           </div>
           <div>
             <dt>신청 방법</dt>
             <dd>{policy.applyMethod}</dd>
+          </div>
+          <div>
+            <dt>공고 기준일</dt>
+            <dd>{formatIsoDate(policy.announcement.publishedAt)}</dd>
+          </div>
+          <div>
+            <dt>공고</dt>
+            <dd>
+              <SourceLink
+                source={{ name: policy.announcement.title, url: policy.announcement.url }}
+              />
+            </dd>
           </div>
         </dl>
       </section>

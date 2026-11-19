@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { POLICIES } from "@/data/policies";
-import { diagnose, type Blocker, type Profile } from "@/lib/diagnosis";
+import { diagnose, type Blocker } from "@/lib/diagnosis";
+import type { Answers } from "@/lib/rules";
+import { AiAccessProvider } from "./AiAccessProvider";
 import { ProgressSidebar } from "./ProgressSidebar";
 import { Stepper } from "./Stepper";
 import { BlockerStep } from "./steps/BlockerStep";
@@ -10,16 +12,33 @@ import { PolicyStep } from "./steps/PolicyStep";
 import { ResultStep } from "./steps/ResultStep";
 import { SituationStep } from "./steps/SituationStep";
 
-const EMPTY_PROFILE: Profile = { age: "", region: "", monthlyIncome: "", status: "" };
+/**
+ * 페이지는 빌드할 때 미리 렌더링되므로, 접수 기간 판정에 쓰는 현재 시각은
+ * 브라우저에서만 읽는다. 서버 렌더링 결과와 어긋나지 않도록 서버에서는 null이다.
+ */
+let pageOpenedAt: Date | undefined;
+const subscribeNothing = () => () => {};
+const getClientNow = () => (pageOpenedAt ??= new Date());
+const getServerNow = () => null;
 
 export function PolicyHelper() {
+  const now = useSyncExternalStore(subscribeNothing, getClientNow, getServerNow);
   const [step, setStep] = useState(0);
+  const [situationPage, setSituationPage] = useState(0);
   const [policyId, setPolicyId] = useState<string | null>(null);
   const [blocker, setBlocker] = useState<Blocker | null>(null);
-  const [profile, setProfile] = useState<Profile>(EMPTY_PROFILE);
+  const [answers, setAnswers] = useState<Answers>({});
   const [checkedDocumentIds, setCheckedDocumentIds] = useState<string[]>([]);
   const [inquiryTopic, setInquiryTopic] = useState("");
   const [inquiryResolved, setInquiryResolved] = useState(false);
+  /** 설명 카드에서 문의하겠다고 고른 조건 */
+  const [inquiryRuleIds, setInquiryRuleIds] = useState<string[]>([]);
+  const [focusInquiry, setFocusInquiry] = useState(false);
+  /** 3단계에서 설명 카드를 열어 본 조건 */
+  const [viewedRuleIds, setViewedRuleIds] = useState<string[]>([]);
+  const markExplanationViewed = useCallback((ruleId: string) => {
+    setViewedRuleIds((current) => (current.includes(ruleId) ? current : [...current, ruleId]));
+  }, []);
   const [note, setNote] = useState("");
 
   const panelRef = useRef<HTMLElement>(null);
@@ -29,10 +48,10 @@ export function PolicyHelper() {
 
   const diagnosis = useMemo(
     () =>
-      policy
-        ? diagnose({ policy, blocker, profile, checkedDocumentIds, inquiryResolved })
+      policy && now
+        ? diagnose({ policy, blocker, answers, checkedDocumentIds, inquiryResolved, now })
         : null,
-    [policy, blocker, profile, checkedDocumentIds, inquiryResolved],
+    [policy, blocker, answers, checkedDocumentIds, inquiryResolved, now],
   );
 
   useEffect(() => {
@@ -42,14 +61,20 @@ export function PolicyHelper() {
     }
     panelRef.current?.focus({ preventScroll: true });
     panelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, [step]);
+  }, [step, situationPage]);
 
   const selectPolicy = (id: string) => {
     if (id === policyId) return;
     setPolicyId(id);
+    setSituationPage(0);
     setCheckedDocumentIds([]);
     setInquiryResolved(false);
+    setInquiryRuleIds([]);
+    setViewedRuleIds([]);
   };
+
+  const answer = (questionId: string, value: string) =>
+    setAnswers((current) => ({ ...current, [questionId]: value }));
 
   const toggleDocument = (id: string) => {
     setCheckedDocumentIds((current) =>
@@ -60,7 +85,8 @@ export function PolicyHelper() {
   const reachableStep = !policy ? 0 : !blocker ? 1 : 3;
 
   return (
-    <>
+    // AI 기능이 생기면 useAiAccess().ensureAiAccess()로 동의와 접근 코드를 받는다.
+    <AiAccessProvider>
       <header className="topbar">
         <div className="container topbar-inner">
           <span className="brand">
@@ -87,6 +113,7 @@ export function PolicyHelper() {
             {step === 0 && (
               <PolicyStep
                 selectedId={policyId}
+                now={now}
                 onSelect={selectPolicy}
                 onNext={() => setStep(1)}
               />
@@ -96,37 +123,58 @@ export function PolicyHelper() {
                 selected={blocker}
                 onSelect={setBlocker}
                 onBack={() => setStep(0)}
-                onNext={() => setStep(2)}
+                onNext={() => {
+                  setSituationPage(0);
+                  setStep(2);
+                }}
               />
             )}
-            {step === 2 && policy && blocker && diagnosis && (
+            {step === 2 && policy && blocker && diagnosis && now && (
               <SituationStep
                 policy={policy}
                 blocker={blocker}
-                profile={profile}
+                answers={answers}
+                now={now}
                 conditions={diagnosis.conditions}
+                documents={diagnosis.documents}
                 checkedDocumentIds={checkedDocumentIds}
                 inquiryTopic={inquiryTopic}
                 note={note}
-                onProfileChange={setProfile}
+                page={situationPage}
+                onAnswer={answer}
                 onToggleDocument={toggleDocument}
                 onInquiryTopicChange={setInquiryTopic}
                 onNoteChange={setNote}
+                onPageChange={setSituationPage}
+                onRequestInquiry={(ruleId) => {
+                  setInquiryRuleIds((current) =>
+                    current.includes(ruleId) ? current : [...current, ruleId],
+                  );
+                  setFocusInquiry(true);
+                  setStep(3);
+                }}
+                onExplanationViewed={markExplanationViewed}
                 onBack={() => setStep(1)}
                 onNext={() => setStep(3)}
               />
             )}
-            {step === 3 && policy && blocker && diagnosis && (
+            {step === 3 && policy && blocker && diagnosis && now && (
               <ResultStep
                 policy={policy}
                 blocker={blocker}
                 diagnosis={diagnosis}
+                answers={answers}
+                now={now}
                 checkedDocumentIds={checkedDocumentIds}
                 inquiryTopic={inquiryTopic}
                 inquiryResolved={inquiryResolved}
                 note={note}
                 onToggleDocument={toggleDocument}
                 onInquiryResolvedChange={setInquiryResolved}
+                inquiryRuleIds={inquiryRuleIds}
+                viewedRuleIds={viewedRuleIds}
+                focusInquiry={focusInquiry}
+                onInquiryFocused={() => setFocusInquiry(false)}
                 onBack={() => setStep(2)}
               />
             )}
@@ -144,6 +192,6 @@ export function PolicyHelper() {
           </span>
         </a>
       )}
-    </>
+    </AiAccessProvider>
   );
 }
