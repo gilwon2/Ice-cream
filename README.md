@@ -1,45 +1,38 @@
-# 혜택진단
+# 청년정책 신청 도우미
 
-청년이 정책 혜택을 받지 못하는 원인을 진단하는 프로토타입입니다. 정책은 모두 가상 데이터입니다.
+이미 찾은 청년정책을 왜 신청하지 못하는지 진단하고, 신청 준비, 정책 개선 제안, 공식 기관 문의 중 알맞은 다음 행동으로 연결하는 인터랙티브 MVP입니다.
 
-## 실행
+> 화면의 정책명, 조건, 수치는 시연용 **가상 데이터**입니다. 실제 자격은 공식 기관의 심사로 결정됩니다.
+
+## 실행 방법
+
+Node.js LTS가 필요합니다. 설치되어 있지 않다면 아래 명령으로 설치한 뒤 터미널을 다시 엽니다.
+
+```bash
+winget install OpenJS.NodeJS.LTS
+```
 
 ```bash
 npm install
-cp .env.example .env.local   # ANTHROPIC_API_KEY 입력
 npm run dev
 ```
 
-http://localhost:3000 을 엽니다. API 키가 없어도 프로필 입력, 자격 판정, 행동 계획은 동작합니다.
+브라우저에서 http://localhost:3000 을 엽니다.
 
-## 데모 접근 제한
+## 진행률과 신청 규칙
 
-`DEMO_ACCESS_CODE`를 설정하면 진단 화면에서 입력한 코드가 일치할 때만 AI를 호출합니다. 코드가 없어도 자격 판정과 행동 계획은 볼 수 있습니다.
+- 진행률은 자격 조건(연령, 거주지, 월소득)과 제출서류를 합산합니다.
+- "조건이 애매해요"를 선택하면 공식 기관 확인 항목이 추가됩니다.
+- 모든 항목이 완료되어 100%가 되어야 신청 버튼이 열립니다.
+- 판정 순서는 미충족, 확인 필요, 서류 부족, 신청 준비 완료입니다.
 
-`/api/diagnosis`는 IP별로 1분에 10회까지 허용합니다. 횟수는 서버 프로세스 메모리에 저장되므로, 서버를 재시작하면 초기화되고 여러 인스턴스 사이에는 공유되지 않습니다.
+## 주요 파일
 
-## 화면
+| 파일 | 역할 |
+|---|---|
+| `src/data/policies.ts` | 가상 정책, 서류 발급 링크, 신청 사이트 |
+| `src/lib/diagnosis.ts` | 자격 판정, 진행률, 진단 경로 계산 |
+| `src/lib/drafts.ts` | 정책 개선 제안문, 기관 문의문 템플릿 |
+| `src/components/PolicyHelper.tsx` | 화면 상태와 단계 흐름 |
 
-1. `/` 프로필 입력
-2. `/diagnosis` AI 원인 진단 채팅
-3. `/plan` 원인별 행동 계획, 서류 체크리스트, 신청 링크
-
-## 역할 분담
-
-| 구분 | 담당 | 위치 |
-| --- | --- | --- |
-| 자격 판정 | TypeScript 순수 함수 | `lib/eligibility.ts` |
-| 신청하지 못한 행동적 원인 분류 | Claude | `app/api/diagnosis/route.ts` |
-| AI 결과 검증과 계획 생성 | TypeScript 함수 | `lib/plan.ts` |
-| 정책 데이터 | JSON | `data/policies.json` |
-
-로그인과 DB는 없습니다. 입력값은 브라우저 `sessionStorage`에만 보관되고, 진단 대화 중에는 Claude API로 전송됩니다.
-
-## 검사
-
-```bash
-npm test
-npm run typecheck
-npm run lint
-npm run build
-```
+실제 정책으로 교체할 때는 `src/data/policies.ts`의 조건과 `apply.url`을 해당 정책의 공식 정보로 바꿉니다.
