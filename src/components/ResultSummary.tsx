@@ -2,7 +2,6 @@ import type { Policy } from "@/data/policies";
 import type { Diagnosis, Route } from "@/lib/diagnosis";
 import { countConditions } from "@/lib/resultSummary";
 import { formatIsoDate } from "@/lib/rules";
-import { ApplyAction } from "./ApplyAction";
 import { SourceLink } from "./SourceLink";
 
 const ROUTE_COPY: Record<Route, { tone: string; label: string; title: string; body: string }> = {
@@ -16,13 +15,13 @@ const ROUTE_COPY: Record<Route, { tone: string; label: string; title: string; bo
     tone: "info",
     label: "해결 가능한 장애물",
     title: "입력한 조건은 충족하는 것으로 보여요",
-    body: "아래 서류를 준비해 체크해 주세요. 최종 자격은 공식 기관의 심사로 결정돼요.",
+    body: "남은 서류를 준비해 체크해 주세요. 최종 자격은 공식 기관의 심사로 결정돼요.",
   },
   INELIGIBLE: {
     tone: "danger",
     label: "자격 미충족 가능성",
     title: "입력한 내용으로는 충족하지 못한 것으로 보이는 조건이 있어요",
-    body: "사유를 확인하고 다른 지원 가능성을 검토해 보세요. 원한다면 정책 개선 제안문을 작성할 수 있어요.",
+    body: "기준을 다시 확인할 방법과 다른 지원 경로를 먼저 살펴보세요. 원하면 정책 개선을 건의할 수도 있어요.",
   },
   NEEDS_INQUIRY: {
     tone: "warning",
@@ -32,21 +31,16 @@ const ROUTE_COPY: Record<Route, { tone: string; label: string; title: string; bo
   },
 };
 
-/** 경로마다 다음 행동은 하나만 보여준다. */
-export const ROUTE_ACTION: Record<Route, string> = {
-  NEEDS_INQUIRY: "기관 문의문 작성",
-  INELIGIBLE: "개선 제안문 작성",
-  ACTION_REQUIRED: "신청 준비",
-  READY: "신청 준비",
-};
-
 type ResultSummaryProps = {
   policy: Policy;
   diagnosis: Diagnosis;
-  onAction: () => void;
 };
 
-export function ResultSummary({ policy, diagnosis, onAction }: ResultSummaryProps) {
+/**
+ * 해결 안내 맨 위 요약: 결과와 충족·미충족·확인 필요 개수.
+ * 다음 행동은 바로 아래 "다음 행동 선택"에서 고르므로 요약 카드에는 버튼을 두지 않는다.
+ */
+export function ResultSummary({ policy, diagnosis }: ResultSummaryProps) {
   const copy = ROUTE_COPY[diagnosis.route];
   const counts = countConditions(diagnosis.conditions);
   const body =
@@ -61,7 +55,8 @@ export function ResultSummary({ policy, diagnosis, onAction }: ResultSummaryProp
         <strong id="result-summary-title" className="result-summary-title">
           {copy.title}
         </strong>
-        <p className="result-summary-body">{body}</p>
+        {/* 넓은 화면에서는 설명을 그대로 보여주고, 모바일에서는 막힌 조건이 첫 화면에 들어오도록 접어 둔다. */}
+        <p className="result-summary-body is-wide">{body}</p>
       </div>
 
       <ul className="result-counts" aria-label="조건별 판정 개수">
@@ -79,28 +74,24 @@ export function ResultSummary({ policy, diagnosis, onAction }: ResultSummaryProp
         </li>
       </ul>
 
-      <button
-        type="button"
-        className="button button-primary button-block"
-        data-summary-action
-        onClick={onAction}
-      >
-        {ROUTE_ACTION[diagnosis.route]} <span aria-hidden="true">↓</span>
-      </button>
-
-      {/* 모바일에서는 사이드바의 공식 신청 사이트 버튼이 맨 아래에 있으므로 요약 카드에도 보여준다.
-          READY는 아래 신청 영역에 같은 버튼이 있어 넣지 않는다. 데스크톱에서는 CSS로 숨긴다. */}
-      {diagnosis.route !== "READY" && (
-        <div className="summary-apply">
-          <ApplyAction policy={policy} diagnosis={diagnosis} />
-        </div>
-      )}
-
-      <p className="result-meta">
-        공고 기준일 {formatIsoDate(policy.announcement.publishedAt)} ·{" "}
-        <SourceLink source={{ name: policy.announcement.title, url: policy.announcement.url }} /> ·
-        정보 확인일 {formatIsoDate(policy.announcement.checkedAt)}
-      </p>
+      <details className="result-summary-more is-narrow">
+        <summary>결과 설명과 공고 정보 보기</summary>
+        <p className="result-summary-body">{body}</p>
+        <SummaryMeta policy={policy} />
+      </details>
+      <div className="is-wide">
+        <SummaryMeta policy={policy} />
+      </div>
     </section>
+  );
+}
+
+function SummaryMeta({ policy }: { policy: Policy }) {
+  return (
+    <p className="result-meta">
+      공고 기준일 {formatIsoDate(policy.announcement.publishedAt)} ·{" "}
+      <SourceLink source={{ name: policy.announcement.title, url: policy.announcement.url }} /> ·
+      정보 확인일 {formatIsoDate(policy.announcement.checkedAt)}
+    </p>
   );
 }

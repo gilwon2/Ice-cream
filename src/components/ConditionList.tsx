@@ -3,7 +3,7 @@
 import { useState } from "react";
 import type { Policy } from "@/data/policies";
 import { evaluationContext } from "@/lib/diagnosis";
-import { displayStatus, splitConditions, STATUS_LABEL } from "@/lib/resultSummary";
+import { displayStatus, splitConditions, splitVisible, STATUS_LABEL } from "@/lib/resultSummary";
 import { previewOutcomes, type Answers, type RuleResult } from "@/lib/rules";
 import { AiBadge } from "./AiBadge";
 import { ExplanationCard } from "./ExplanationCard";
@@ -134,7 +134,7 @@ function ConditionCard({
                   <AiBadge />
                   {explainOpen ? "AI 설명 닫기" : "내 상황에 맞춘 설명 보기"}
                 </button>
-                {/* STEP 03과 같은 카드라 같은 요청이면 sessionStorage에 저장된 설명을 그대로 쓴다. */}
+                {/* 상황 확인의 설명 카드와 같은 요청이면 sessionStorage에 저장된 설명을 그대로 쓴다. */}
                 {explainOpen && (
                   <ExplanationCard
                     id={explainId}
@@ -189,7 +189,10 @@ function ConditionCard({
  */
 export function ConditionList({ policy, conditions, answers, now, onRequestInquiry }: ConditionListProps) {
   const [settledOpen, setSettledOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const { attention, settled } = splitConditions(conditions);
+  // 막힌 조건이 많으면 처음 3개만 보여 다음 행동 선택이 너무 아래로 밀리지 않게 한다.
+  const { visible, hidden } = splitVisible(attention);
   const metCount = settled.filter((condition) => condition.status === "MET").length;
   const notApplicableCount = settled.length - metCount;
   const settledCountLabel =
@@ -211,9 +214,21 @@ export function ConditionList({ policy, conditions, answers, now, onRequestInqui
   return (
     <>
       {attention.length > 0 ? (
-        <ul className="rule-list">{attention.map(renderCard)}</ul>
+        <ul className="rule-list">{(moreOpen ? attention : visible).map(renderCard)}</ul>
       ) : (
         <p className="muted rule-empty">미충족이거나 확인이 필요한 조건은 없어요.</p>
+      )}
+
+      {hidden.length > 0 && (
+        <button
+          type="button"
+          className="button button-ghost button-small rule-settled-toggle"
+          aria-expanded={moreOpen}
+          onClick={() => setMoreOpen((current) => !current)}
+        >
+          {moreOpen ? "막힌 조건 접기" : `나머지 ${hidden.length}개 더 보기`}
+          <span aria-hidden="true">{moreOpen ? " ▴" : " ▾"}</span>
+        </button>
       )}
 
       {settled.length > 0 && (

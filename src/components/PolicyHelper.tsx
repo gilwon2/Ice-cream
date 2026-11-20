@@ -2,15 +2,19 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { POLICIES } from "@/data/policies";
-import { diagnose, type Blocker } from "@/lib/diagnosis";
+import { diagnose } from "@/lib/diagnosis";
 import type { Answers } from "@/lib/rules";
 import { scrollToElement } from "@/lib/scrollToElement";
-import { furthestAfterPolicyChange, reachableStep, RESULT_STEP } from "@/lib/stepNavigation";
+import {
+  furthestAfterPolicyChange,
+  reachableStep,
+  RESULT_STEP,
+  SITUATION_STEP,
+} from "@/lib/stepNavigation";
 import { AiAccessProvider } from "./AiAccessProvider";
 import { AiBadge } from "./AiBadge";
 import { ProgressSidebar } from "./ProgressSidebar";
 import { Stepper } from "./Stepper";
-import { BlockerStep } from "./steps/BlockerStep";
 import { PolicyStep } from "./steps/PolicyStep";
 import { ResultStep } from "./steps/ResultStep";
 import { SituationStep } from "./steps/SituationStep";
@@ -29,21 +33,19 @@ export function PolicyHelper() {
   const [step, setStep] = useState(0);
   const [situationPage, setSituationPage] = useState(0);
   const [policyId, setPolicyId] = useState<string | null>(null);
-  const [blocker, setBlocker] = useState<Blocker | null>(null);
   const [answers, setAnswers] = useState<Answers>({});
   const [checkedDocumentIds, setCheckedDocumentIds] = useState<string[]>([]);
   const [inquiryTopic, setInquiryTopic] = useState("");
-  const [inquiryResolved, setInquiryResolved] = useState(false);
   /** 설명 카드에서 문의하겠다고 고른 조건 */
   const [inquiryRuleIds, setInquiryRuleIds] = useState<string[]>([]);
   const [focusInquiry, setFocusInquiry] = useState(false);
-  /** 3단계에서 설명 카드를 열어 본 조건 */
+  /** 상황 확인·해결 안내에서 설명 카드를 열어 본 조건 */
   const [viewedRuleIds, setViewedRuleIds] = useState<string[]>([]);
   const markExplanationViewed = useCallback((ruleId: string) => {
     setViewedRuleIds((current) => (current.includes(ruleId) ? current : [...current, ruleId]));
   }, []);
   const [note, setNote] = useState("");
-  /** Stepper가 STEP 03을 거치지 않고 04로 건너뛰지 못하게 실제 도달한 가장 먼 단계 */
+  /** Stepper가 STEP 02(상황 확인)를 거치지 않고 03으로 건너뛰지 못하게 실제 도달한 가장 먼 단계 */
   const [furthestStep, setFurthestStep] = useState(0);
   /** 단계 스크롤 효과에서 읽기 위한 focusInquiry 사본(이벤트 핸들러에서만 바꾼다) */
   const focusInquiryRef = useRef(false);
@@ -67,9 +69,9 @@ export function PolicyHelper() {
   const diagnosis = useMemo(
     () =>
       policy && now
-        ? diagnose({ policy, blocker, answers, checkedDocumentIds, inquiryResolved, now })
+        ? diagnose({ policy, answers, checkedDocumentIds, now })
         : null,
-    [policy, blocker, answers, checkedDocumentIds, inquiryResolved, now],
+    [policy, answers, checkedDocumentIds, now],
   );
 
   // 단계가 바뀌면 새 패널 제목이 상단 진행률 바 바로 아래에 오도록 스크롤한다.
@@ -98,7 +100,7 @@ export function PolicyHelper() {
     setFurthestStep(furthestAfterPolicyChange);
     setSituationPage(0);
     setCheckedDocumentIds([]);
-    setInquiryResolved(false);
+    setInquiryTopic("");
     setInquiryRuleIds([]);
     setViewedRuleIds([]);
   };
@@ -114,7 +116,6 @@ export function PolicyHelper() {
 
   const reachable = reachableStep({
     hasPolicy: Boolean(policy),
-    hasBlocker: Boolean(blocker),
     furthest: furthestStep,
   });
 
@@ -137,7 +138,7 @@ export function PolicyHelper() {
         <div className="container">
           <h1>정책은 찾았는데, 신청에서 막혔나요?</h1>
           <p className="hero-lead">
-            신청을 중단한 이유를 확인하고, 지금 할 수 있는 다음 행동을 찾아보세요.
+            정책을 고르고 내 상황을 입력하면, 막힌 조건과 지금 할 수 있는 다음 행동을 알려드려요.
           </p>
           <p className="hero-ai">
             <AiBadge variant="inverse" />
@@ -172,35 +173,24 @@ export function PolicyHelper() {
                 selectedId={policyId}
                 now={now}
                 onSelect={selectPolicy}
-                onNext={() => goTo(1)}
-              />
-            )}
-            {step === 1 && (
-              <BlockerStep
-                selected={blocker}
-                onSelect={setBlocker}
-                onBack={() => goTo(0)}
                 onNext={() => {
                   setSituationPage(0);
-                  goTo(2);
+                  goTo(SITUATION_STEP);
                 }}
               />
             )}
-            {step === 2 && policy && blocker && diagnosis && now && (
+            {step === SITUATION_STEP && policy && diagnosis && now && (
               <SituationStep
                 policy={policy}
-                blocker={blocker}
                 answers={answers}
                 now={now}
                 conditions={diagnosis.conditions}
                 documents={diagnosis.documents}
                 checkedDocumentIds={checkedDocumentIds}
-                inquiryTopic={inquiryTopic}
                 note={note}
                 page={situationPage}
                 onAnswer={answer}
                 onToggleDocument={toggleDocument}
-                onInquiryTopicChange={setInquiryTopic}
                 onNoteChange={setNote}
                 onPageChange={setSituationPage}
                 onRequestInquiry={(ruleId) => {
@@ -208,29 +198,27 @@ export function PolicyHelper() {
                   goTo(RESULT_STEP);
                 }}
                 onExplanationViewed={markExplanationViewed}
-                onBack={() => goTo(1)}
+                onBack={() => goTo(0)}
                 onNext={() => goTo(RESULT_STEP)}
               />
             )}
-            {step === 3 && policy && blocker && diagnosis && now && (
+            {step === RESULT_STEP && policy && diagnosis && now && (
               <ResultStep
                 policy={policy}
-                blocker={blocker}
                 diagnosis={diagnosis}
                 answers={answers}
                 now={now}
                 checkedDocumentIds={checkedDocumentIds}
                 inquiryTopic={inquiryTopic}
-                inquiryResolved={inquiryResolved}
                 note={note}
                 onToggleDocument={toggleDocument}
-                onInquiryResolvedChange={setInquiryResolved}
+                onInquiryTopicChange={setInquiryTopic}
                 inquiryRuleIds={inquiryRuleIds}
                 viewedRuleIds={viewedRuleIds}
                 focusInquiry={focusInquiry}
                 onInquiryFocused={inquiryFocused}
                 onRequestInquiry={requestInquiry}
-                onBack={() => goTo(2)}
+                onBack={() => goTo(SITUATION_STEP)}
               />
             )}
           </main>

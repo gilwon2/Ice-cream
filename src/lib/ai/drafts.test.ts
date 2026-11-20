@@ -41,7 +41,6 @@ const config: AiConfig = {
 /** 판정 결과: 주택·전입은 모르겠어요, 청년 소득은 기준 초과(미충족) */
 const diagnosis = diagnose({
   policy: YOUTH_RENT,
-  blocker: "unclear",
   answers: {
     birthDate: "1999-03-15",
     ownsHouse: UNKNOWN_ANSWER,
@@ -51,7 +50,6 @@ const diagnosis = diagnose({
     youthIncome: "300",
   },
   checkedDocumentIds: [],
-  inquiryResolved: false,
   now: NOW,
 });
 

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { YOUTH_RENT } from "@/data/policies/youthRent";
 import type { RuleResult, RuleStatus } from "@/lib/rules";
 import { diagnose } from "./diagnosis";
-import { countConditions, displayStatus, orderConditions, splitConditions } from "./resultSummary";
+import { countConditions, displayStatus, orderConditions, splitConditions, splitVisible } from "./resultSummary";
 
 const NOW = new Date("2026-11-19T12:00:00+09:00");
 
@@ -29,10 +29,8 @@ const RENT_OK: Record<string, string> = {
 function rentDiagnosis(overrides: Record<string, string>) {
   return diagnose({
     policy: YOUTH_RENT,
-    blocker: "eligibility",
     answers: { ...RENT_OK, ...overrides },
     checkedDocumentIds: [],
-    inquiryResolved: false,
     now: NOW,
   });
 }
@@ -148,5 +146,16 @@ describe("splitConditions", () => {
     const input = [result("a", "MET"), result("b", "NOT_MET"), result("c", "NOT_APPLICABLE")];
     const { attention, settled } = splitConditions(input);
     expect(attention.length + settled.length).toBe(input.length);
+  });
+});
+
+describe("splitVisible", () => {
+  it("3개 이하면 모두 보여준다", () => {
+    expect(splitVisible([1, 2, 3])).toEqual({ visible: [1, 2, 3], hidden: [] });
+  });
+
+  it("4개 이상이면 처음 3개만 보이고 나머지를 접는다", () => {
+    expect(splitVisible([1, 2, 3, 4])).toEqual({ visible: [1, 2, 3], hidden: [4] });
+    expect(splitVisible([1, 2, 3, 4, 5]).hidden).toHaveLength(2);
   });
 });

@@ -48,6 +48,18 @@ export function orderConditions(conditions: RuleResult[]): RuleResult[] {
     .map(({ condition }) => condition);
 }
 
+/** 막힌 조건 카드를 처음에 몇 개까지 보여줄지 */
+export const ATTENTION_PREVIEW_COUNT = 3;
+
+/**
+ * 목록이 limit보다 길면 처음 limit개만 보이고 나머지는 접는다.
+ * limit+1개 이상일 때만 접는다(4개 이상이면 3개 + "나머지 n개 더 보기").
+ */
+export function splitVisible<T>(items: T[], limit = ATTENTION_PREVIEW_COUNT): { visible: T[]; hidden: T[] } {
+  if (items.length <= limit) return { visible: items, hidden: [] };
+  return { visible: items.slice(0, limit), hidden: items.slice(limit) };
+}
+
 /**
  * 결과 화면에서 먼저 보여줄 조건(미충족·확인 필요)과 접어 둘 조건(충족·해당 없음)으로 나눈다.
  * 막힌 조건을 먼저 보게 하려는 표시용 분류라 판정은 바꾸지 않고, 각 목록은 orderConditions 순서를 따른다.
