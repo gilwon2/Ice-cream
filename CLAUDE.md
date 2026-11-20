@@ -118,6 +118,6 @@ npm run build
 ## 알려진 이슈 (우선 처리)
 
 - [x] AI 컨텍스트로 가는 `conditions[].reason`(`src/lib/ai/context.ts`)과 조건 설명용 근거(`src/lib/ai/explain.ts`의 `groundingValue`)에 출생연도·만 나이 등 사용자 입력값이 들어간다. AI용으로는 상태별 고정 문장으로 바꾸고, 입력값이 프롬프트에 포함되지 않는지 테스트를 추가한다. 화면용 `reason`은 유지한다.
-- [ ] AI 호출 제한(IP당 1분 10회)을 `AI_RATE_LIMIT_PER_MINUTE` 환경변수로 조정할 수 있게 한다.
+- [x] AI 호출 제한(IP당 1분 10회)을 `AI_RATE_LIMIT_PER_MINUTE` 환경변수로 조정할 수 있게 한다.
 - [ ] README에 "Credits / Licenses", "배포 및 환경변수", "개인정보 처리" 절을 추가한다.
 - [ ] 결과 화면: 상단 요약과 다음 행동 버튼, AI 작성 버튼을 위로 올리고, 조건 카드는 기본 접힘으로 바꾼다. 모바일에는 상단 고정 진행률 바를 둔다.

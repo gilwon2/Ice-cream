@@ -31,7 +31,12 @@ import { createExplanationCache } from "./explainClient";
 import { ACCESS_CODE_HEADER, encodeAccessCode } from "./shared";
 
 const NOW = new Date("2026-11-19T12:00:00+09:00");
-const config: AiConfig = { apiKey: "test-key", model: "claude-sonnet-5-5", accessCode: "demo" };
+const config: AiConfig = {
+  apiKey: "test-key",
+  model: "claude-sonnet-5-5",
+  accessCode: "demo",
+  rateLimitPerMinute: 30,
+};
 
 /** 판정 결과: 주택·전입은 모르겠어요, 청년 소득은 기준 초과(미충족) */
 const diagnosis = diagnose({

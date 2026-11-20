@@ -12,7 +12,12 @@ import { buildExplainRequest, explainCacheKey } from "./explainShared";
  */
 
 const NOW = new Date("2026-11-19T12:00:00+09:00");
-const config: AiConfig = { apiKey: "test-key", model: "claude-sonnet-5-5", accessCode: "demo" };
+const config: AiConfig = {
+  apiKey: "test-key",
+  model: "claude-sonnet-5-5",
+  accessCode: "demo",
+  rateLimitPerMinute: 30,
+};
 
 /**
  * 가상 데이터. 1990-06-17생 = 만 36세(병역 18개월을 더하면 연령 기준 안),

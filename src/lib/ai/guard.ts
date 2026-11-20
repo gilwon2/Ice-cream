@@ -124,8 +124,14 @@ export async function guardRequest<S extends z.ZodType>(
   return { ok: true, body: parsed.data };
 }
 
-/** 모든 AI 라우트가 함께 쓰는 제한기: IP별 1분 10회 */
-export const aiRateLimiter = createRateLimiter({ limit: 10, windowMs: 60_000 });
+/**
+ * 모든 AI 라우트가 함께 쓰는 제한기: IP별 1분 AI_RATE_LIMIT_PER_MINUTE회(기본 30회).
+ * 서버가 시작될 때 한 번 읽으므로, 값을 바꾸면 서버를 다시 시작해야 한다.
+ */
+export const aiRateLimiter = createRateLimiter({
+  limit: readAiConfig().rateLimitPerMinute,
+  windowMs: 60_000,
+});
 
 /** 라우트에서 쓰는 기본 보호. 환경변수의 접근 코드와 공용 제한기를 쓴다. */
 export function guardAiRoute<S extends z.ZodType>(request: Request, schema: S) {

@@ -13,11 +13,21 @@ import {
   runAiTask,
   type AiGenerate,
 } from "./client";
-import { DEFAULT_ANTHROPIC_MODEL, readAiConfig, type AiConfig } from "./config";
+import {
+  DEFAULT_AI_RATE_LIMIT_PER_MINUTE,
+  DEFAULT_ANTHROPIC_MODEL,
+  readAiConfig,
+  type AiConfig,
+} from "./config";
 
 const schema = z.object({ summary: z.string() });
 const task = { system: "시스템", prompt: "질문", schema };
-const config: AiConfig = { apiKey: "test-key", model: "claude-sonnet-5-5", accessCode: "demo" };
+const config: AiConfig = {
+  apiKey: "test-key",
+  model: "claude-sonnet-5-5",
+  accessCode: "demo",
+  rateLimitPerMinute: 30,
+};
 
 function apiError(statusCode: number, message = "API error", responseBody?: string) {
   return new APICallError({
@@ -216,13 +226,30 @@ describe("환경변수", () => {
   it("값을 다듬고, 빈 값은 없는 것으로 본다", () => {
     expect(
       readAiConfig({ ANTHROPIC_API_KEY: " key ", ANTHROPIC_MODEL: " ", DEMO_ACCESS_CODE: "" }),
-    ).toEqual({ apiKey: "key", model: "claude-sonnet-5-5", accessCode: null });
+    ).toEqual({ apiKey: "key", model: "claude-sonnet-5-5", accessCode: null, rateLimitPerMinute: 30 });
   });
+
+  it("AI 호출 한도 기본값은 1분 30회다", () => {
+    expect(DEFAULT_AI_RATE_LIMIT_PER_MINUTE).toBe(30);
+    expect(readAiConfig({}).rateLimitPerMinute).toBe(30);
+  });
+
+  it("AI_RATE_LIMIT_PER_MINUTE에 1 이상의 정수를 주면 그 값을 쓴다", () => {
+    expect(readAiConfig({ AI_RATE_LIMIT_PER_MINUTE: "1" }).rateLimitPerMinute).toBe(1);
+    expect(readAiConfig({ AI_RATE_LIMIT_PER_MINUTE: " 60 " }).rateLimitPerMinute).toBe(60);
+  });
+
+  it.each(["", " ", "abc", "10abc", "2.5", "0", "-5", "1e2", "99999999999999999999"])(
+    "AI_RATE_LIMIT_PER_MINUTE가 %j이면 기본값 30을 쓴다",
+    (value) => {
+      expect(readAiConfig({ AI_RATE_LIMIT_PER_MINUTE: value }).rateLimitPerMinute).toBe(30);
+    },
+  );
 
   it("NEXT_PUBLIC_ 변수는 읽지 않는다", () => {
     expect(
       readAiConfig({ NEXT_PUBLIC_ANTHROPIC_API_KEY: "leak", NEXT_PUBLIC_DEMO_ACCESS_CODE: "leak" }),
-    ).toEqual({ apiKey: null, model: "claude-sonnet-5-5", accessCode: null });
+    ).toEqual({ apiKey: null, model: "claude-sonnet-5-5", accessCode: null, rateLimitPerMinute: 30 });
   });
 });
 
@@ -242,12 +269,17 @@ describe("서버 전용 코드 분리", () => {
     expect(offenders).toEqual([]);
   });
 
-  it(".env.example에는 세 변수의 이름만 있고 값과 NEXT_PUBLIC_ 변수는 없다", () => {
+  it(".env.example에는 네 변수의 이름만 있고 값과 NEXT_PUBLIC_ 변수는 없다", () => {
     const example = readFileSync(join(srcDir, "..", ".env.example"), "utf8");
     const entries = example
       .split(/\r?\n/)
       .filter((line) => line.trim() && !line.trim().startsWith("#"));
-    expect(entries).toEqual(["ANTHROPIC_API_KEY=", "ANTHROPIC_MODEL=", "DEMO_ACCESS_CODE="]);
+    expect(entries).toEqual([
+      "ANTHROPIC_API_KEY=",
+      "ANTHROPIC_MODEL=",
+      "DEMO_ACCESS_CODE=",
+      "AI_RATE_LIMIT_PER_MINUTE=",
+    ]);
   });
 
   it("키를 읽는 파일은 server-only로 표시되어 있다", () => {
