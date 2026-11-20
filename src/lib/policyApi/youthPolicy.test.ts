@@ -15,6 +15,7 @@ import {
   clearRecommendationCache,
   describePeriod,
   getRecommendations,
+  isRelevant,
   maskUrl,
   parseYouthPolicyResponse,
   readYouthPolicyKey,
@@ -327,6 +328,77 @@ describe("고르기", () => {
       period: "2026.01.01 ~ 2026.12.31",
       url: "https://youth.example.go.kr/view?id=1",
       sourceName: "온통청년(한국고용정보원)",
+    });
+  });
+
+  describe("분야 관련 낱말로 순서 보완", () => {
+    const housing = { lclsfNm: "주거", mclsfNm: "전월세 및 주거급여 지원" };
+
+    it("주거와 관계없는 항목(교통 정책)은 뒤로 보내되 빼지는 않는다", () => {
+      // 2026-11-20 실제 응답에서 본 경우: 교통 정책이 "전월세 및 주거급여 지원"으로 분류돼 있었다.
+      const cards = pick(
+        [
+          rawPolicy({ ...housing, plcyNo: "bus", plcyNm: "대중교통 활성화 및 교통서비스 개선", plcyKywdNm: "보조금" }),
+          rawPolicy({ ...housing, plcyNo: "kw", plcyNm: "신혼부부 대출이자 지원", plcyKywdNm: "주거지원" }),
+          rawPolicy({ ...housing, plcyNo: "name", plcyNm: "청년 주거 임차비 지원", plcyKywdNm: "보조금" }),
+          rawPolicy({ ...housing, plcyNo: "lease", plcyNm: "청년희망주택 임대료 지원", plcyKywdNm: "" }),
+        ],
+        YOUTH_RENT,
+      );
+      expect(cards.map((card) => card.id)).toEqual(["kw", "name", "lease", "bus"]);
+    });
+
+    it("관련 낱말이 링크·중앙부처·상시 접수보다 먼저다", () => {
+      const cards = pick(
+        [
+          rawPolicy({ ...housing, plcyNo: "bus", plcyNm: "교통비 지원", plcyKywdNm: "보조금" }),
+          rawPolicy({
+            ...housing,
+            plcyNo: "rent",
+            plcyNm: "청년 전세보증금 이자 지원",
+            pvsnInstGroupCd: CODES.localGovernment,
+            aplyPrdSeCd: CODES.periodSpecific,
+            aplyYmd: "20260101 ~ 20261231",
+            aplyUrlAddr: "",
+            refUrlAddr1: "",
+          }),
+        ],
+        YOUTH_RENT,
+      );
+      expect(cards.map((card) => card.id)).toEqual(["rent", "bus"]);
+    });
+
+    it("관련 항목이 4개를 넘으면 관계없는 항목은 자리에서 밀린다", () => {
+      const cards = pick(
+        [
+          rawPolicy({ ...housing, plcyNo: "bus", plcyNm: "교통비 지원", plcyKywdNm: "보조금" }),
+          ...Array.from({ length: 4 }, (_, index) =>
+            rawPolicy({ ...housing, plcyNo: `h${index}`, plcyNm: `주거비 지원 ${index}`, plcyKywdNm: "주거지원" }),
+          ),
+        ],
+        YOUTH_RENT,
+      );
+      expect(cards.map((card) => card.id)).toEqual(["h0", "h1", "h2", "h3"]);
+    });
+
+    it("일자리 분야도 같은 방식으로 정렬한다", () => {
+      const cards = pick([
+        rawPolicy({ plcyNo: "farm", plcyNm: "친환경청년농부 시설지원", plcyKywdNm: "보조금" }),
+        rawPolicy({ plcyNo: "robot", plcyNm: "글로벌 AI로봇 해커톤 개최 지원", plcyKywdNm: "교육지원" }),
+        rawPolicy({ plcyNo: "center", plcyNm: "충남일자리종합센터 운영", plcyKywdNm: "맞춤형상담서비스" }),
+        rawPolicy({ plcyNo: "public", plcyNm: "공공근로 사업", plcyKywdNm: "인턴,장기미취업청년" }),
+      ]);
+      expect(cards.map((card) => card.id)).toEqual(["center", "public", "farm", "robot"]);
+    });
+
+    it("정책명과 키워드만 보고, 모든 결과가 같은 중분류명은 보지 않는다", () => {
+      const category = YOUTH_RENT.recommendation;
+      expect(isRelevant({ plcyNm: "대중교통 활성화", plcyKywdNm: "보조금" }, category)).toBe(false);
+      expect(isRelevant({ plcyNm: "신혼부부 대출이자", plcyKywdNm: "보조금,주거지원" }, category)).toBe(true);
+      expect(isRelevant({ plcyNm: "청년 전 세 보증금", plcyKywdNm: "" }, category)).toBe(true);
+      // 중분류명("전월세 및 주거급여 지원")에는 "주거"와 "월세"가 있지만 판단에 쓰지 않는다.
+      const withSubcategory = { plcyNm: "대중교통 활성화", plcyKywdNm: "보조금", mclsfNm: "전월세 및 주거급여 지원" };
+      expect(isRelevant(withSubcategory, category)).toBe(false);
     });
   });
 

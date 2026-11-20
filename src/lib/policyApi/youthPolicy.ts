@@ -104,6 +104,8 @@ const optionalText = z
 const policyItemSchema = z.object({
   plcyNo: z.string().min(1),
   plcyNm: z.string().min(1),
+  /** 정책키워드명(예: "주거지원,보조금"). 순서 정렬에만 쓴다. */
+  plcyKywdNm: optionalText,
   plcyAprvSttsCd: optionalText,
   aplyPrdSeCd: optionalText,
   aplyYmd: optionalText,
@@ -302,9 +304,23 @@ function toItem(item: YouthPolicyItem): RecommendationItem {
 }
 
 /**
+ * 정책명이나 키워드에 분야 관련 낱말이 있으면 true.
+ * 중분류명은 요청 단계에서 이미 거른 값이라 모든 결과가 같으므로 비교하지 않는다
+ * (넣으면 모든 항목이 관련 있음이 되어 순서가 바뀌지 않는다).
+ */
+export function isRelevant(
+  item: Pick<YouthPolicyItem, "plcyNm" | "plcyKywdNm">,
+  category: Pick<Policy["recommendation"], "relevanceKeywords">,
+): boolean {
+  const text = normalizeName(`${item.plcyNm} ${item.plcyKywdNm}`);
+  return category.relevanceKeywords.some((word) => text.includes(normalizeName(word)));
+}
+
+/**
  * 받은 목록에서 보여줄 정책을 고른다.
  * 승인된 정책만, 마감(코드 또는 지난 종료일)과 지금 진단 중인 정책은 빼고 최대 4개.
- * 링크가 있는 정책 → 중앙부처 → 상시 접수 순으로 앞에 둔다(같으면 받은 순서).
+ * 분야 관련 낱말이 있는 정책 → 링크가 있는 정책 → 중앙부처 → 상시 접수 순으로 앞에 둔다
+ * (같으면 받은 순서). 관련 낱말이 없어도 빼지는 않는다.
  */
 export function selectRecommendations(
   items: readonly YouthPolicyItem[],
@@ -335,6 +351,7 @@ export function selectRecommendations(
     .filter(({ card }) => card.title.length > 0)
     .sort((a, b) => {
       const score = (entry: typeof a) =>
+        (isRelevant(entry.item, category) ? 0 : 8) +
         (entry.card.url ? 0 : 4) +
         (entry.item.pvsnInstGroupCd === CODES.centralGovernment ? 0 : 2) +
         (entry.item.aplyPrdSeCd === CODES.periodAlways ? 0 : 1);
@@ -378,7 +395,13 @@ export function clearRecommendationCache(): void {
 }
 
 function cacheKey(category: Policy["recommendation"]): string {
-  return `${category.lclsfNm}|${category.mclsfQuery}|${category.mclsfNm}|${category.samePolicyNames.join(",")}`;
+  return [
+    category.lclsfNm,
+    category.mclsfQuery,
+    category.mclsfNm,
+    category.samePolicyNames.join(","),
+    category.relevanceKeywords.join(","),
+  ].join("|");
 }
 
 type FetchOutcome =

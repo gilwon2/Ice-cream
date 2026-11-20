@@ -51,6 +51,11 @@ export type RecommendationCategory = {
    * "구미형 청년월세 지원사업"처럼 앞에 지역명이 붙은 지자체 자체 사업은 다른 정책으로 보고 남긴다.
    */
   samePolicyNames: readonly string[];
+  /**
+   * 분야와 관련 깊은 낱말. 정책명이나 키워드(plcyKywdNm)에 있으면 앞에 둔다(거르지는 않는다).
+   * 중분류명은 요청 단계에서 이미 거른 값이라 모든 결과가 같으므로 비교하지 않는다.
+   */
+  relevanceKeywords: readonly string[];
 };
 
 export type Policy = {
