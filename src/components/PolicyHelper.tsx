@@ -146,8 +146,9 @@ export function PolicyHelper() {
         </div>
       </div>
 
-      {/* 모바일에서는 사이드바가 본문 아래로 내려가므로 진행률을 상단에 고정해 보여준다. */}
-      {diagnosis && (
+      {/* 모바일에서는 사이드바가 본문 아래로 내려가므로 진행률을 상단에 고정해 보여준다.
+          정책을 고르는 STEP 01에서는 진행률이 의미 없어 보여주지 않는다. */}
+      {diagnosis && step >= 1 && (
         <a className="mobile-progress" href="#progress-panel">
           <span className="mobile-progress-text">
             신청 준비 <strong>{diagnosis.percent}%</strong>
@@ -234,7 +235,7 @@ export function PolicyHelper() {
             )}
           </main>
 
-          <ProgressSidebar policy={policy} diagnosis={diagnosis} />
+          <ProgressSidebar policy={policy} diagnosis={diagnosis} showProgress={step >= 1} />
         </div>
       </div>
     </AiAccessProvider>

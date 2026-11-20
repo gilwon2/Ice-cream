@@ -78,6 +78,10 @@ export type Policy = {
   applyMethod: string;
   apply: ExternalSite;
   contact?: string;
+  /** 문의 전화번호(예: "1350"). contact 문구에 적힌 공식 번호와 같아야 하며, 전화 바로가기에 쓴다. */
+  contactPhone?: string;
+  /** 공식 온라인 문의 페이지. 공식 출처로 확인한 주소만 넣는다. */
+  contactOnline?: ExternalSite;
   questions: readonly Question[];
   questionGroups: readonly QuestionGroup[];
   rules: readonly Rule[];

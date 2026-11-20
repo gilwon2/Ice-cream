@@ -19,15 +19,56 @@ const STATE_ICON: Record<ProgressItem["state"], string> = {
 type ProgressSidebarProps = {
   policy: Policy | null;
   diagnosis: Diagnosis | null;
+  /** false면 정책 정보만 보여준다. 정책을 고르는 STEP 01에서는 아직 진행률이 의미 없어 숨긴다. */
+  showProgress: boolean;
 };
 
-export function ProgressSidebar({ policy, diagnosis }: ProgressSidebarProps) {
+function ProgressCard({ policy, diagnosis }: { policy: Policy; diagnosis: Diagnosis }) {
+  return (
+    <section className="card sidebar-sticky" aria-labelledby="progress-title">
+      <div className="progress-head">
+        <h2 className="card-title" id="progress-title">
+          신청 준비 진행률
+        </h2>
+        <strong className="progress-value" aria-live="polite">
+          {diagnosis.percent}%
+        </strong>
+      </div>
+      <div
+        className={`meter meter-large${diagnosis.percent === 100 ? " is-complete" : ""}`}
+        role="progressbar"
+        aria-label="신청 준비 진행률"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={diagnosis.percent}
+      >
+        <span style={{ width: `${diagnosis.percent}%` }} />
+      </div>
+
+      <ul className="progress-list">
+        {diagnosis.items.map((item) => (
+          <li key={item.id} className={`progress-item is-${item.state}`}>
+            <span className="progress-icon" aria-hidden="true">
+              {STATE_ICON[item.state]}
+            </span>
+            <span>{item.label}</span>
+            <span className="progress-state">{STATE_LABEL[item.state]}</span>
+          </li>
+        ))}
+      </ul>
+
+      <ApplyAction policy={policy} diagnosis={diagnosis} />
+    </section>
+  );
+}
+
+export function ProgressSidebar({ policy, diagnosis, showProgress }: ProgressSidebarProps) {
   if (!policy || !diagnosis) {
     return (
       <aside className="sidebar" id="progress-panel">
         <section className="card">
-          <h2 className="card-title">신청 준비 진행률</h2>
-          <p className="muted">정책을 선택하면 조건과 진행률이 표시돼요.</p>
+          <h2 className="card-title">정책 정보</h2>
+          <p className="muted">정책을 선택하면 지원 내용과 신청 기간이 표시돼요.</p>
         </section>
       </aside>
     );
@@ -74,40 +115,7 @@ export function ProgressSidebar({ policy, diagnosis }: ProgressSidebarProps) {
         </dl>
       </section>
 
-      <section className="card sidebar-sticky" aria-labelledby="progress-title">
-        <div className="progress-head">
-          <h2 className="card-title" id="progress-title">
-            신청 준비 진행률
-          </h2>
-          <strong className="progress-value" aria-live="polite">
-            {diagnosis.percent}%
-          </strong>
-        </div>
-        <div
-          className={`meter meter-large${diagnosis.percent === 100 ? " is-complete" : ""}`}
-          role="progressbar"
-          aria-label="신청 준비 진행률"
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={diagnosis.percent}
-        >
-          <span style={{ width: `${diagnosis.percent}%` }} />
-        </div>
-
-        <ul className="progress-list">
-          {diagnosis.items.map((item) => (
-            <li key={item.id} className={`progress-item is-${item.state}`}>
-              <span className="progress-icon" aria-hidden="true">
-                {STATE_ICON[item.state]}
-              </span>
-              <span>{item.label}</span>
-              <span className="progress-state">{STATE_LABEL[item.state]}</span>
-            </li>
-          ))}
-        </ul>
-
-        <ApplyAction policy={policy} diagnosis={diagnosis} />
-      </section>
+      {showProgress && <ProgressCard policy={policy} diagnosis={diagnosis} />}
     </aside>
   );
 }

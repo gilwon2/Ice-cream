@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { browserSessionStorage } from "@/lib/ai/access";
 import { requestDraft, type DraftResult } from "@/lib/ai/draftsClient";
 import { draftCacheKey, fillSituation, type DraftRequest } from "@/lib/ai/draftsShared";
@@ -23,6 +23,8 @@ type AiDraftProps = {
   copyLabel: string;
   helper: string;
   textareaId?: string;
+  /** 복사 버튼 옆에 둘 바로가기. 고정 템플릿·AI 초안 어느 쪽에도 같이 보여준다. */
+  actions?: ReactNode;
 };
 
 /** AI 초안 영역. 어떤 경우에도 빈칸 없이 편집·복사할 수 있는 글을 보여준다. */
@@ -35,6 +37,7 @@ export function AiDraft({ request, template, ...rest }: AiDraftProps) {
       initialText={template}
       copyLabel={rest.copyLabel}
       helper={rest.helper}
+      actions={rest.actions}
     />
   );
   if (!request) return templateDraft;
@@ -53,6 +56,7 @@ function AiDraftBody({
   copyLabel,
   helper,
   textareaId,
+  actions,
 }: AiDraftProps & { request: DraftRequest }) {
   const { store, ensureAiAccess } = useAiAccess();
   const cache = useMemo(() => createExplanationCache(browserSessionStorage), []);
@@ -109,6 +113,7 @@ function AiDraftBody({
           copyLabel={copyLabel}
           helper={helper}
           streaming={streaming}
+          actions={actions}
         />
       </div>
     );
@@ -135,6 +140,7 @@ function AiDraftBody({
         initialText={template}
         copyLabel={copyLabel}
         helper={helper}
+        actions={actions}
       />
     </div>
   );

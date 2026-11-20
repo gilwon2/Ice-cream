@@ -10,10 +10,14 @@ import { scrollToElement } from "@/lib/scrollToElement";
 import { AiDraft } from "../AiDraft";
 import { ApplyAction } from "../ApplyAction";
 import { ConditionList } from "../ConditionList";
+import { ContactActions } from "../ContactActions";
 import { DocumentChecklist } from "../DocumentChecklist";
 import { ResultSummary } from "../ResultSummary";
 import { SimilarPolicies } from "../SimilarPolicies";
 import { SourceLink } from "../SourceLink";
+
+/** 온통청년 청년신문고(정책 제안 창구). 제안문은 자동 제출하지 않고 사용자가 직접 붙여넣는다. */
+const YOUTH_SINMUNGO_URL = "https://www.youthcenter.go.kr/youthJoin/ythJoinSinmungo";
 
 /** 요약 카드의 주 버튼이 옮겨 갈 다음 행동 영역 */
 const ACTION_TARGET: Record<Route, string> = {
@@ -128,6 +132,7 @@ export function ResultStep({
         aiTitle="기관 문의문 초안"
         copyLabel="문의문 복사"
         helper="내용을 검토한 뒤 공식 상담 채널에 직접 문의해 주세요."
+        actions={<ContactActions policy={policy} />}
       />
       {blocker === "unclear" ? (
         <label className="confirm-check">
@@ -151,7 +156,27 @@ export function ResultStep({
 
       <ResultSummary policy={policy} diagnosis={diagnosis} onAction={goToAction} />
 
-      {/* 다음 행동 영역: 요약 카드 바로 아래에 둔다. */}
+      {/* 막힌 조건을 먼저 보도록 조건별 판정을 요약 카드 바로 아래에 둔다.
+          충족·해당 없음 조건은 ConditionList 안에서 버튼 하나로 접힌다. */}
+      <section className="section" aria-labelledby="conditions-title">
+        <h3 id="conditions-title">조건별 판정</h3>
+        <p className="muted">카드를 누르면 기준, 입력, 출처, 확인 방법을 볼 수 있어요.</p>
+        {unverifiedCount > 0 && (
+          <p className="callout callout-small">
+            &lsquo;확인 중인 기준&rsquo; {unverifiedCount}개는 공고 원문으로 아직 확인하지 못했어요.
+            이 기준에 맞지 않아도 미충족으로 확정하지 않고 확인 필요로 표시해요.
+          </p>
+        )}
+        <ConditionList
+          policy={policy}
+          conditions={diagnosis.conditions}
+          answers={answers}
+          now={now}
+          onRequestInquiry={onRequestInquiry}
+        />
+      </section>
+
+      {/* 다음 행동 영역: 조건별 판정 바로 아래에 둔다. */}
       {route === "NEEDS_INQUIRY" && inquirySection}
 
       {route === "INELIGIBLE" && (
@@ -172,7 +197,19 @@ export function ResultStep({
             aiTitle="정책 개선 제안문 초안"
             copyLabel="제안문 복사"
             helper="내용을 검토하고 수정한 뒤 공식 의견제출 채널에 직접 제출해 주세요. 자동으로 제출되지 않아요."
+            actions={
+              <a
+                className="button button-secondary"
+                href={YOUTH_SINMUNGO_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                청년신문고에 의견 내기 <span aria-hidden="true">↗</span>
+                <span className="sr-only">(새 탭에서 열림)</span>
+              </a>
+            }
           />
+          <p className="hint">작성한 제안문을 복사해서 붙여넣으세요 · 온통청년 로그인이 필요할 수 있어요</p>
         </section>
       )}
 
@@ -194,7 +231,12 @@ export function ResultStep({
       )}
 
       {route === "READY" && (
-        <section className="section result-action" id="apply" tabIndex={-1} aria-label="신청하기">
+        <section
+          className="section result-action"
+          id="apply"
+          tabIndex={-1}
+          aria-label="공식 신청 사이트"
+        >
           <ApplyAction policy={policy} diagnosis={diagnosis} />
         </section>
       )}
@@ -218,7 +260,7 @@ export function ResultStep({
       {route === "NEEDS_INQUIRY" && hasUnknown && (
         <section className="section">
           <p className="callout">
-            확인이 필요한 조건이 있어요. 아래 조건 카드를 펼쳐 확인 방법을 보거나, 위 문의문으로
+            확인이 필요한 조건이 있어요. 위 조건 카드를 펼쳐 확인 방법을 보거나, 위 문의문으로
             기관에 물어본 뒤 이전 단계에서 다시 입력하면 바로 다시 판정해요.
           </p>
         </section>
@@ -252,24 +294,6 @@ export function ResultStep({
           ))}
         </section>
       )}
-
-      <section className="section">
-        <h3>조건별 판정</h3>
-        <p className="muted">카드를 누르면 기준, 입력, 출처, 확인 방법을 볼 수 있어요.</p>
-        {unverifiedCount > 0 && (
-          <p className="callout callout-small">
-            &lsquo;확인 중인 기준&rsquo; {unverifiedCount}개는 공고 원문으로 아직 확인하지 못했어요.
-            이 기준에 맞지 않아도 미충족으로 확정하지 않고 확인 필요로 표시해요.
-          </p>
-        )}
-        <ConditionList
-          policy={policy}
-          conditions={diagnosis.conditions}
-          answers={answers}
-          now={now}
-          onRequestInquiry={onRequestInquiry}
-        />
-      </section>
 
       <p className="notice">
         이 결과는 공식 안내를 바탕으로 입력값만 비교한 모의 판정이에요. 실제 자격과 제출서류는 공식

@@ -413,6 +413,7 @@ export const YOUTH_RENT: Policy = {
   applyMethod: "복지로 온라인 신청",
   apply: { name: "복지로", url: "https://www.bokjiro.go.kr" },
   contact: "국토교통부 청년월세 콜센터 1599-0001",
+  contactPhone: "1599-0001",
   questions,
   questionGroups: [
     {

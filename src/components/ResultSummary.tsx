@@ -88,8 +88,8 @@ export function ResultSummary({ policy, diagnosis, onAction }: ResultSummaryProp
         {ROUTE_ACTION[diagnosis.route]} <span aria-hidden="true">↓</span>
       </button>
 
-      {/* 모바일에서는 사이드바의 신청하기 버튼이 맨 아래에 있으므로 요약 카드에도 보여준다.
-          READY는 바로 아래 신청 영역에 같은 버튼이 있어 넣지 않는다. 데스크톱에서는 CSS로 숨긴다. */}
+      {/* 모바일에서는 사이드바의 공식 신청 사이트 버튼이 맨 아래에 있으므로 요약 카드에도 보여준다.
+          READY는 아래 신청 영역에 같은 버튼이 있어 넣지 않는다. 데스크톱에서는 CSS로 숨긴다. */}
       {diagnosis.route !== "READY" && (
         <div className="summary-apply">
           <ApplyAction policy={policy} diagnosis={diagnosis} />
