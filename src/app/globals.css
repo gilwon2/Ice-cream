@@ -16,14 +16,18 @@
   --warning: #8a5200;
   --warning-soft: #fff4df;
   --radius: 12px;
+  /* 화면 상단에 고정된 영역 높이. 모바일 진행률 바가 보이는 구간에서 바뀐다. */
+  --sticky-top: 0px;
 }
 
 * {
   box-sizing: border-box;
 }
 
+/* 스크롤·포커스 이동 시 요소가 상단 고정 바에 가리지 않게 한다.
+   scrollToElement()도 이 값을 읽어 같은 위치로 맞춘다. */
 html {
-  scroll-padding-top: 16px;
+  scroll-padding-top: calc(var(--sticky-top) + 16px);
 }
 
 body {
@@ -150,6 +154,24 @@ main:focus {
   color: #d5e2f8;
 }
 
+/* STEP 02부터: 입력 영역이 바로 보이도록 줄인다. 스크롤 중 높이가 변하지 않게 transition은 두지 않는다. */
+.hero.is-compact {
+  padding: 14px 0 16px;
+}
+
+.hero.is-compact h1 {
+  font-size: 19px;
+}
+
+.hero.is-compact .hero-lead {
+  display: none;
+}
+
+.hero.is-compact .hero-ai {
+  margin-top: 6px;
+  font-size: 13px;
+}
+
 .page {
   padding-top: 24px;
   padding-bottom: 88px;
@@ -221,19 +243,30 @@ main:focus {
   background: var(--surface);
 }
 
+/* 스크롤 여백은 html의 scroll-padding-top 하나로만 준다(겹치면 32px로 벌어진다). */
 .panel {
   padding: 28px;
-  scroll-margin-top: 16px;
 }
 
+/* 사이드바 전체를 sticky + 내부 스크롤로 두면 화면보다 길 때 아래 카드가 잘려 보인다.
+   사이드바는 본문 높이만큼 늘리고, 진행률 카드만 따라오게 한다. */
 .sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-self: stretch;
+}
+
+.sidebar-sticky {
   position: sticky;
   top: 16px;
-  display: grid;
-  gap: 16px;
-  max-height: calc(100vh - 32px);
-  overflow-y: auto;
-  scroll-margin-top: 16px;
+}
+
+/* 진행률 카드는 항목이 많으면 770px 안팎이라, 낮은 화면에서 sticky로 두면 아래가 잘린다. */
+@media (max-height: 860px) {
+  .sidebar-sticky {
+    position: static;
+  }
 }
 
 .card {
@@ -1390,40 +1423,66 @@ input[type="number"]:disabled {
   margin-top: 18px;
 }
 
-/* 모바일 진행률 바 */
-.mobile-progress {
+/* 모바일 진행률 바 / 요약 카드 안 신청 버튼: 사이드바가 옆에 있는 데스크톱에서는 숨긴다. */
+.mobile-progress,
+.summary-apply {
   display: none;
 }
 
 @media (max-width: 920px) {
+  :root {
+    --mobile-progress-height: 52px;
+  }
+
+  /* 진행률 바가 있을 때만 스크롤 여백에 바 높이를 더한다. */
+  html:has(.mobile-progress) {
+    --sticky-top: var(--mobile-progress-height);
+  }
+
+  .page {
+    padding-bottom: 40px;
+  }
+
   .layout {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .sidebar {
+  /* 아래로 내려온 사이드바에서는 진행률을 먼저 보여준다(상단 바를 누르면 여기로 온다). */
+  .sidebar-sticky {
     position: static;
-    max-height: none;
-    overflow: visible;
+    order: -1;
   }
 
   .mobile-progress {
-    position: fixed;
-    right: 0;
-    bottom: 0;
-    left: 0;
+    position: sticky;
+    top: 0;
     z-index: 10;
     display: grid;
     grid-template-columns: auto minmax(0, 1fr);
     align-items: center;
     gap: 12px;
-    min-height: 56px;
-    padding: 8px 16px;
-    border-top: 1px solid var(--line);
+    height: var(--mobile-progress-height);
+    padding: 0 16px;
+    border-bottom: 1px solid var(--line);
     background: var(--surface);
     color: var(--ink);
     font-size: 14px;
-    font-weight: 700;
+    font-weight: 600;
     text-decoration: none;
+  }
+
+  .mobile-progress strong {
+    color: var(--blue-dark);
+  }
+
+  .mobile-progress-remaining {
+    color: var(--muted);
+    font-weight: 500;
+  }
+
+  .summary-apply {
+    display: block;
+    margin-top: 12px;
   }
 }
 
