@@ -13,7 +13,6 @@ const POLICY_IDS = POLICIES.map((policy) => policy.id) as [string, ...string[]];
 export const aiConditionRequestSchema = z
   .strictObject({
     policyId: z.enum(POLICY_IDS),
-    blocker: z.enum(["documents", "eligibility", "unclear"]).nullable(),
     answers: z.record(z.string().max(40), z.string().max(20)),
     checkedDocumentIds: z.array(z.string().max(60)).max(30),
   })
@@ -67,10 +66,8 @@ export function buildAiContext(request: AiConditionRequest, now: Date): AiContex
 
   const diagnosis = diagnose({
     policy,
-    blocker: request.blocker,
     answers: request.answers,
     checkedDocumentIds: request.checkedDocumentIds,
-    inquiryResolved: false,
     now,
   });
 

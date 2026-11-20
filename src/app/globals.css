@@ -154,7 +154,7 @@ main:focus {
   color: #d5e2f8;
 }
 
-/* STEP 02부터: 입력 영역이 바로 보이도록 줄인다. 스크롤 중 높이가 변하지 않게 transition은 두지 않는다. */
+/* 상황 확인(STEP 02)부터: 입력 영역이 바로 보이도록 줄인다. 스크롤 중 높이가 변하지 않게 transition은 두지 않는다. */
 .hero.is-compact {
   padding: 14px 0 16px;
 }
@@ -1511,9 +1511,133 @@ input[type="number"]:disabled {
   margin-top: 18px;
 }
 
-/* 모바일 진행률 바 / 요약 카드 안 신청 버튼: 사이드바가 옆에 있는 데스크톱에서는 숨긴다. */
-.mobile-progress,
-.summary-apply {
+/* 해결 안내: 다음 행동 선택 카드 */
+.next-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.next-action {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.next-action:hover {
+  border-color: var(--blue);
+}
+
+.next-action:focus-visible {
+  outline: 3px solid var(--blue);
+  outline-offset: 2px;
+}
+
+.next-action.is-selected {
+  border-color: var(--blue);
+  background: var(--blue-soft);
+}
+
+.next-action-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.next-action-arrow {
+  margin-left: auto;
+  color: var(--blue);
+}
+
+.next-action-desc {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.tag-recommend {
+  margin: 0;
+  background: var(--blue);
+  color: var(--surface);
+}
+
+.action-panel {
+  margin-top: 16px;
+}
+
+.action-panel:focus {
+  outline: none;
+}
+
+.action-subtitle {
+  margin: 20px 0 4px;
+  font-size: 16px;
+}
+
+.inquiry-topic {
+  margin-top: 12px;
+}
+
+.inquiry-topic .field-label {
+  margin: 0 0 6px;
+}
+
+.recheck-list {
+  display: grid;
+  gap: 10px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.recheck-list > li {
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.recheck-list ul {
+  margin: 4px 0 0;
+  padding-left: 20px;
+  font-size: 14px;
+}
+
+.alternative-box {
+  margin-top: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.alternative-box h4 {
+  margin: 0;
+  font-size: 16px;
+}
+
+/* 요약 카드: 넓은 화면에서는 설명을 펼쳐 두고, 모바일에서는 접는다(아래 미디어 쿼리). */
+.result-summary-more {
+  display: none;
+  font-size: 14px;
+}
+
+.result-summary-more summary {
+  color: var(--blue-dark);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* 모바일 진행률 바: 사이드바가 옆에 있는 데스크톱에서는 숨긴다. */
+.mobile-progress {
   display: none;
 }
 
@@ -1568,10 +1692,6 @@ input[type="number"]:disabled {
     font-weight: 500;
   }
 
-  .summary-apply {
-    display: block;
-    margin-top: 12px;
-  }
 }
 
 @media (max-width: 600px) {
@@ -1581,6 +1701,32 @@ input[type="number"]:disabled {
 
   .similar-list {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* 요약 카드를 줄여 막힌 조건 카드의 AI 설명 버튼이 첫 화면에 들어오게 한다. */
+  .result-summary {
+    gap: 10px;
+    padding: 14px;
+  }
+
+  .result-summary-title {
+    font-size: 17px;
+  }
+
+  .result-summary .is-wide {
+    display: none;
+  }
+
+  .result-summary-more {
+    display: block;
+  }
+
+  .result-count {
+    padding: 6px 10px;
+  }
+
+  .result-count strong {
+    font-size: 19px;
   }
 
   .panel {

@@ -161,7 +161,6 @@ describe("AI로 보내는 정보 제한", () => {
   const NOW = new Date("2026-11-19T12:00:00+09:00");
   const valid = {
     policyId: "youth-rent",
-    blocker: "eligibility",
     answers: { birthDate: "2001-05-10", maritalStatus: "married", ownsHouse: "unknown", youthIncome: "150" },
     checkedDocumentIds: ["bankbook"],
   };
@@ -198,5 +197,9 @@ describe("AI로 보내는 정보 제한", () => {
 
   it("브라우저가 보낸 판정은 받지 않고 서버에서 다시 계산한다", () => {
     expect(aiConditionRequestSchema.safeParse({ ...valid, route: "READY" }).success).toBe(false);
+  });
+
+  it("막힌 지점(blocker) 단계가 없어져 blocker 필드가 섞여도 거절한다", () => {
+    expect(aiConditionRequestSchema.safeParse({ ...valid, blocker: "unclear" }).success).toBe(false);
   });
 });

@@ -61,7 +61,6 @@ function expectNoInputNumbers(text: string) {
 function contextFor(answers: Record<string, string>) {
   const request = aiConditionRequestSchema.parse({
     policyId: NATIONAL_EMPLOYMENT.id,
-    blocker: "eligibility",
     answers,
     checkedDocumentIds: [],
   });

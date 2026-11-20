@@ -1,4 +1,4 @@
-const STEPS = ["정책 선택", "막힌 지점", "상황 확인", "해결 안내"];
+const STEPS = ["정책 선택", "상황 확인", "해결 안내"];
 
 type StepperProps = {
   current: number;

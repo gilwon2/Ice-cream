@@ -35,7 +35,7 @@ npm run build
 | `src/lib/rules/` | **순수 판정 엔진.** 규칙 평가(`evaluate`), 적용 조건(`when`), 답별 결과 미리보기(`preview`), 날짜·금액·접수 기간 |
 | `src/data/policies/` | 정책별 질문, 규칙, 서류, 출처, 접수 기간 (`types.ts`의 `Policy` 형식) |
 | `src/data/medianIncome.ts` | 연도별 기준 중위소득 |
-| `src/lib/diagnosis.ts` | 판정 결과 종합, 진행률, 최종 경로 |
+| `src/lib/diagnosis.ts` | 판정 결과 종합, 진행률, 최종 경로 (`nextActions.ts`: 경로별 다음 행동) |
 | `src/lib/drafts.ts` | 문의문·제안문 고정 템플릿 (AI 실패 시 대체용) |
 | `src/lib/ai/` | AI 호출. `config`(환경변수), `guard`(호출 제한·접근 코드·본문 검증), `context`, `explain`, `drafts`, `client`(타임아웃), `*Shared.ts`(브라우저와 공유하는 스키마) |
 | `src/lib/policyApi/` | 온통청년 청년정책 API(비슷한 정책 추천 전용). `youthPolicy`(server-only: 요청·검증·필터·캐시·대체), `recommendationsShared`(브라우저와 공유하는 응답 스키마) |
@@ -136,7 +136,7 @@ npm run build
 - [x] 시작 화면(STEP 01) 진행률 숨기기
 - [x] 공식 신청 사이트 버튼 항상 열기 ("공식 신청 사이트에서 확인하기")
 - [x] 청년신문고 바로가기
-- [ ] 4단계 → 3단계(정책 선택, 상황 확인, 해결 안내). "막힌 지점" 단계를 없애고, 해결 안내에서
+- [x] 4단계 → 3단계(정책 선택, 상황 확인, 해결 안내). "막힌 지점" 단계를 없애고, 해결 안내에서
       진단 결과 + 문의문/정책 건의문 중 선택 + 비슷한 정책 추천을 보여준다.
       미충족 결과는 "막힌 조건 → 기준 재확인 방법 → 다른 지원 경로 → (원하면) 정책 개선 제안" 순서.
 - [ ] 진행률을 "자격 확인"(충족/미충족 가능성/확인 필요)과 "신청 준비"(서류 n개 중 m개)로 분리.

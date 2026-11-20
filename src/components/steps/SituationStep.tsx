@@ -1,39 +1,27 @@
-import { INQUIRY_TOPICS, type Policy, type RequiredDocument } from "@/data/policies";
+import type { Policy, RequiredDocument } from "@/data/policies";
 import { INPUT_PRIVACY_SHORT, INPUT_PRIVACY_TEXT } from "@/lib/ai/shared";
-import { questionPages, type Blocker } from "@/lib/diagnosis";
+import { questionPages } from "@/lib/diagnosis";
 import { primaryQuestionId, type Answers, type Question, type RuleResult } from "@/lib/rules";
 import { DocumentChecklist } from "../DocumentChecklist";
 import { QuestionField } from "../QuestionField";
 
-const NOTE_COPY: Record<Blocker, { label: string; placeholder: string }> = {
-  documents: {
-    label: "막힌 상황을 한 문장으로 설명하기 (선택)",
-    placeholder: "예: 어떤 서류를 어디서 발급받는지 모르겠어요.",
-  },
-  eligibility: {
-    label: "정책 기준과 별개로 어려운 점 (선택)",
-    placeholder: "예: 소득이 조금 높지만 매달 주거비가 많이 들어 부담스러워요.",
-  },
-  unclear: {
-    label: "상황 설명 (선택)",
-    placeholder: "예: 부모님과 다른 주소에 살고 있는데 가구 기준이 궁금해요.",
-  },
+/** 메모는 문의문·건의문의 상황 자리에만 브라우저에서 끼워 넣는다(서버·AI로 보내지 않음). */
+const NOTE_COPY = {
+  label: "지금 상황이나 어려운 점 (선택)",
+  placeholder: "예: 부모님과 다른 주소에 살고 있는데 가구 기준이 궁금해요.",
 };
 
 type SituationStepProps = {
   policy: Policy;
-  blocker: Blocker;
   answers: Answers;
   now: Date;
   conditions: RuleResult[];
   documents: RequiredDocument[];
   checkedDocumentIds: string[];
-  inquiryTopic: string;
   note: string;
   page: number;
   onAnswer: (questionId: string, value: string) => void;
   onToggleDocument: (id: string) => void;
-  onInquiryTopicChange: (topic: string) => void;
   onNoteChange: (note: string) => void;
   onPageChange: (page: number) => void;
   /** 설명 카드의 "문의문 작성으로 이동" */
@@ -50,18 +38,15 @@ type Page =
 
 export function SituationStep({
   policy,
-  blocker,
   answers,
   now,
   conditions,
   documents,
   checkedDocumentIds,
-  inquiryTopic,
   note,
   page,
   onAnswer,
   onToggleDocument,
-  onInquiryTopicChange,
   onNoteChange,
   onPageChange,
   onRequestInquiry,
@@ -69,18 +54,15 @@ export function SituationStep({
   onBack,
   onNext,
 }: SituationStepProps) {
-  const prepare: Page = {
-    kind: "prepare",
-    title: blocker === "unclear" ? "서류와 문의 준비" : "제출서류 준비",
-  };
+  const prepare: Page = { kind: "prepare", title: "제출서류 준비" };
   const questionList: Page[] = questionPages(policy, answers, now).map((item) => ({
     kind: "questions",
     title: item.group.title,
     description: item.group.description,
     questions: item.questions,
   }));
-  // 서류가 막힌 경우에는 서류부터 보여준다.
-  const pages = blocker === "documents" ? [prepare, ...questionList] : [...questionList, prepare];
+  // 조건 질문을 먼저 묻고, 마지막에 서류 체크와 메모를 받는다.
+  const pages = [...questionList, prepare];
   const index = Math.min(page, pages.length - 1);
   const current = pages[index];
   const isLast = index === pages.length - 1;
@@ -114,10 +96,10 @@ export function SituationStep({
       }}
     >
       <p className="eyebrow">
-        STEP 03 · {index + 1}/{pages.length}
+        STEP 02 · {index + 1}/{pages.length}
       </p>
       <h2 className="panel-title">{current.title}</h2>
-      {/* 숫자를 입력하는 질문 페이지에서도 보이도록 STEP 3 상단에 한 번만 둔다. */}
+      {/* 숫자를 입력하는 질문 페이지에서도 보이도록 상황 확인 상단에 한 번만 둔다. */}
       <p className="privacy-note">{INPUT_PRIVACY_SHORT}</p>
 
       {current.kind === "questions" ? (
@@ -162,37 +144,14 @@ export function SituationStep({
             />
           </section>
 
-          {blocker === "unclear" && (
-            <section className="section">
-              <h3>확인이 필요한 주제</h3>
-              <p className="muted">정확하게 판단하기 어려운 부분을 선택해 주세요.</p>
-              <div className="pill-group" role="radiogroup" aria-label="확인이 필요한 주제">
-                {INQUIRY_TOPICS.map((topic) => (
-                  <label
-                    key={topic}
-                    className={`pill${inquiryTopic === topic ? " is-selected" : ""}`}
-                  >
-                    <input
-                      type="radio"
-                      name="inquiry-topic"
-                      checked={inquiryTopic === topic}
-                      onChange={() => onInquiryTopicChange(topic)}
-                    />
-                    {topic}
-                  </label>
-                ))}
-              </div>
-            </section>
-          )}
-
           <section className="section">
             <label className="field-label" htmlFor="note">
-              {NOTE_COPY[blocker].label}
+              {NOTE_COPY.label}
             </label>
             <textarea
               id="note"
               rows={3}
-              placeholder={NOTE_COPY[blocker].placeholder}
+              placeholder={NOTE_COPY.placeholder}
               value={note}
               onChange={(event) => onNoteChange(event.target.value)}
             />
@@ -212,7 +171,7 @@ export function SituationStep({
           ← 이전
         </button>
         <button type="submit" className="button button-primary">
-          {isLast ? "진단 결과 확인 →" : "다음 →"}
+          {isLast ? "해결 안내 보기 →" : "다음 →"}
         </button>
       </div>
     </form>

@@ -3,7 +3,8 @@ import { POLICIES, type Policy } from "@/data/policies";
 import { NATIONAL_EMPLOYMENT } from "@/data/policies/nationalEmployment";
 import { YOUTH_RENT } from "@/data/policies/youthRent";
 import { birthDateForAge, UNKNOWN_ANSWER, type RuleStatus } from "@/lib/rules";
-import { diagnose, questionPages, shouldShowInquiry, type DiagnosisInput } from "./diagnosis";
+import { diagnose, questionPages, type DiagnosisInput } from "./diagnosis";
+import { nextActions } from "./nextActions";
 import { buildInquiryDraft } from "./drafts";
 
 /** 청년월세 2026년 접수(3.30~5.29)가 끝난 뒤 */
@@ -52,10 +53,8 @@ function run(
 ) {
   return diagnose({
     policy,
-    blocker: "eligibility",
     answers,
     checkedDocumentIds: [],
-    inquiryResolved: false,
     now: NOW,
     ...options,
   });
@@ -366,35 +365,46 @@ describe("국민취업지원제도 I유형 (청년)", () => {
   });
 });
 
-describe("기관 문의문 표시", () => {
+describe("다음 행동 (판정 결과로 결정)", () => {
+  const docs = (policy: Policy) => ({ checkedDocumentIds: allDocuments(policy) });
+
   it.each([
-    ["unclear", "READY", true],
-    ["unclear", "ACTION_REQUIRED", true],
-    ["unclear", "NEEDS_INQUIRY", true],
-    ["unclear", "INELIGIBLE", false],
-    ["documents", "NEEDS_INQUIRY", true],
-    ["eligibility", "NEEDS_INQUIRY", true],
-    ["documents", "READY", false],
-    ["eligibility", "ACTION_REQUIRED", false],
-    ["eligibility", "INELIGIBLE", false],
-  ] as const)("막힌 이유 %s, 판정 %s이면 %s다", (blocker, route, shown) => {
-    expect(shouldShowInquiry(blocker, route)).toBe(shown);
+    ["확인된 기준 미충족", () => rent({ ownsHouse: "yes" }), "INELIGIBLE", ["inquiry", "proposal"]],
+    ["모르겠어요", () => rent({ ownsHouse: UNKNOWN_ANSWER }), "NEEDS_INQUIRY", ["inquiry", "prepare"]],
+    ["확인 중인 기준 미충족", () => rent({ youthAsset: "13000" }), "NEEDS_INQUIRY", ["inquiry", "prepare"]],
+    ["서류 부족", () => nes({}, { checkedDocumentIds: ["guide-video"] }), "ACTION_REQUIRED", ["prepare", "inquiry"]],
+    ["준비 완료", () => nes({}, docs(NATIONAL_EMPLOYMENT)), "READY", ["prepare", "inquiry"]],
+  ] as const)("%s이면 경로 %s, 선택지 %j이고 첫 번째가 추천이다", (_, make, route, options) => {
+    const result = make();
+    expect(result.route).toBe(route);
+    const plan = nextActions(result);
+    expect(plan.options).toEqual(options);
+    expect(plan.recommended).toBe(options[0]);
   });
 
-  it("다른 이유를 골라도 모르겠어요로 답한 조건이 있으면 문의문이 나오고 그 조건이 들어간다", () => {
-    const result = rent({ ownsHouse: UNKNOWN_ANSWER }, { blocker: "eligibility" });
+  it("미충족이면 막힌 조건을 기준 재확인 문의 대상으로 넣고, 그 밖에는 넣지 않는다", () => {
+    expect(nextActions(rent({ ownsHouse: "yes" })).inquiryFocusRuleIds).toEqual(["rent-no-house"]);
+    expect(nextActions(rent({ ownsHouse: UNKNOWN_ANSWER })).inquiryFocusRuleIds).toEqual([]);
+  });
+
+  it("확인 중인 기준에만 걸리면 정책 개선 건의를 선택지에 두지 않는다", () => {
+    expect(nextActions(rent({ youthAsset: "13000" })).options).not.toContain("proposal");
+  });
+
+  it("모르겠어요로 답한 조건이 있으면 문의를 추천하고 그 조건이 문의문에 들어간다", () => {
+    const result = rent({ ownsHouse: UNKNOWN_ANSWER });
     expect(result.route).toBe("NEEDS_INQUIRY");
-    expect(shouldShowInquiry("eligibility", result.route)).toBe(true);
+    expect(nextActions(result).recommended).toBe("inquiry");
 
     const draft = buildInquiryDraft(YOUTH_RENT, "", "", result.conditions);
     expect(draft).toContain("확인이 필요한 항목: 아래 조건을 제 상황에 적용하는 방법");
     expect(draft).toContain("- 무주택 (기준: 무주택 청년)");
   });
 
-  it("확인 중인 기준에 맞지 않을 때도 문의문이 나온다", () => {
-    const result = rent({ youthAsset: "13000" }, { blocker: "documents" });
+  it("확인 중인 기준에 맞지 않을 때도 문의를 추천하고 그 조건이 문의문에 들어간다", () => {
+    const result = rent({ youthAsset: "13000" });
     expect(result.route).toBe("NEEDS_INQUIRY");
-    expect(shouldShowInquiry("documents", result.route)).toBe(true);
+    expect(nextActions(result).recommended).toBe("inquiry");
     expect(buildInquiryDraft(YOUTH_RENT, "", "", result.conditions)).toContain("- 청년가구 재산");
   });
 
@@ -432,12 +442,10 @@ describe("최종 경로와 진행률", () => {
     ]);
   });
 
-  it("공식 기관 확인이 남아 있으면 NEEDS_INQUIRY이고, 확인하면 READY다", () => {
-    const checked = allDocuments(NATIONAL_EMPLOYMENT);
-    expect(nes({}, { blocker: "unclear", checkedDocumentIds: checked }).route).toBe("NEEDS_INQUIRY");
-    expect(
-      nes({}, { blocker: "unclear", checkedDocumentIds: checked, inquiryResolved: true }).route,
-    ).toBe("READY");
+  it("사용자 선택 없이, 조건을 모두 충족하고 서류를 다 체크하면 READY이고 진행률 항목은 조건과 서류뿐이다", () => {
+    const result = nes({}, { checkedDocumentIds: allDocuments(NATIONAL_EMPLOYMENT) });
+    expect(result.route).toBe("READY");
+    expect(result.items.map((item) => item.id)).not.toContain("inquiry");
   });
 
   it("해당 없는 조건은 진행률 항목에 넣지 않는다", () => {

@@ -12,14 +12,10 @@ import {
   type RuleResult,
 } from "@/lib/rules";
 
-export type Blocker = "documents" | "eligibility" | "unclear";
-
 export type DiagnosisInput = {
   policy: Policy;
-  blocker: Blocker | null;
   answers: Answers;
   checkedDocumentIds: string[];
-  inquiryResolved: boolean;
   now: Date;
 };
 
@@ -61,7 +57,7 @@ function progressState(condition: RuleResult): ProgressItem["state"] {
 }
 
 export function diagnose(input: DiagnosisInput): Diagnosis {
-  const { policy, blocker, answers, checkedDocumentIds, inquiryResolved, now } = input;
+  const { policy, answers, checkedDocumentIds, now } = input;
   const context = evaluationContext(policy, answers, now);
 
   const conditions = evaluateRules(policy.rules, context);
@@ -72,7 +68,6 @@ export function diagnose(input: DiagnosisInput): Diagnosis {
   const missingDocuments = documents.filter(
     (document) => !checkedDocumentIds.includes(document.id),
   );
-  const inquiryPending = blocker === "unclear" && !inquiryResolved;
 
   const items: ProgressItem[] = [
     ...applicable.map((condition) => ({
@@ -80,15 +75,6 @@ export function diagnose(input: DiagnosisInput): Diagnosis {
       label: condition.label,
       state: progressState(condition),
     })),
-    ...(blocker === "unclear"
-      ? [
-          {
-            id: "inquiry",
-            label: "공식 기관 확인",
-            state: inquiryResolved ? ("done" as const) : ("todo" as const),
-          },
-        ]
-      : []),
     ...documents.map((document) => ({
       id: document.id,
       label: document.label,
@@ -99,10 +85,11 @@ export function diagnose(input: DiagnosisInput): Diagnosis {
   const doneCount = items.filter((item) => item.state === "done").length;
   const percent = items.length === 0 ? 0 : Math.floor((doneCount / items.length) * 100);
 
+  // 경로는 사용자가 고른 이유가 아니라 판정 결과와 서류 체크만으로 정한다.
   let route: Route = "READY";
   if (applicable.some(isConfirmedNotMet)) {
     route = "INELIGIBLE";
-  } else if (inquiryPending || applicable.some((condition) => condition.status !== "MET")) {
+  } else if (applicable.some((condition) => condition.status !== "MET")) {
     route = "NEEDS_INQUIRY";
   } else if (missingDocuments.length > 0) {
     route = "ACTION_REQUIRED";
@@ -125,16 +112,6 @@ export function diagnose(input: DiagnosisInput): Diagnosis {
       (advisory) => matchWhen(advisory.appliesWhen, answers, now) === true,
     ),
   };
-}
-
-/**
- * 기관 문의문을 보여줄지 정한다.
- * "조건이 애매해요"를 골랐거나, 판정 결과가 추가 확인 필요이면 보여준다.
- * 확인된 기준에 맞지 않는 경우(INELIGIBLE)에는 문의문 대신 개선 제안문을 보여준다.
- */
-export function shouldShowInquiry(blocker: Blocker | null, route: Route): boolean {
-  if (route === "INELIGIBLE") return false;
-  return blocker === "unclear" || route === "NEEDS_INQUIRY";
 }
 
 export type QuestionPage = {
