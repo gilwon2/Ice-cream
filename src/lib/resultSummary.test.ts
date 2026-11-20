@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { YOUTH_RENT } from "@/data/policies/youthRent";
 import type { RuleResult, RuleStatus } from "@/lib/rules";
 import { diagnose } from "./diagnosis";
-import { countConditions, displayStatus, orderConditions } from "./resultSummary";
+import { countConditions, displayStatus, orderConditions, splitConditions } from "./resultSummary";
 
 const NOW = new Date("2026-11-19T12:00:00+09:00");
 
@@ -124,5 +124,29 @@ describe("orderConditions", () => {
     const input = [result("a", "MET"), result("b", "NOT_MET")];
     orderConditions(input);
     expect(input.map((condition) => condition.ruleId)).toEqual(["a", "b"]);
+  });
+});
+
+describe("splitConditions", () => {
+  it("미충족·확인 필요는 먼저 보일 목록에, 충족·해당 없음은 접을 목록에 넣고 순서를 지킨다", () => {
+    const { attention, settled } = splitConditions([
+      result("na", "NOT_APPLICABLE"),
+      result("met1", "MET"),
+      result("unknown1", "UNKNOWN"),
+      result("notmet-unverified", "NOT_MET", false),
+      result("notmet1", "NOT_MET"),
+    ]);
+    expect(attention.map((condition) => condition.ruleId)).toEqual([
+      "notmet1",
+      "unknown1",
+      "notmet-unverified",
+    ]);
+    expect(settled.map((condition) => condition.ruleId)).toEqual(["met1", "na"]);
+  });
+
+  it("모든 조건을 빠짐없이 한 번씩 나눈다", () => {
+    const input = [result("a", "MET"), result("b", "NOT_MET"), result("c", "NOT_APPLICABLE")];
+    const { attention, settled } = splitConditions(input);
+    expect(attention.length + settled.length).toBe(input.length);
   });
 });

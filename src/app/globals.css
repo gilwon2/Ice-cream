@@ -1110,6 +1110,29 @@ input[type="number"]:disabled {
   text-overflow: ellipsis;
 }
 
+/* 접힌 막힌 조건 카드 바로 아래의 AI 설명 버튼 */
+.rule-ai-quick {
+  margin-top: 6px;
+  margin-left: 4px;
+}
+
+.rule-empty {
+  margin: 8px 0 0;
+}
+
+/* 충족·해당 없음 조건 묶음 */
+.rule-settled {
+  margin-top: 12px;
+}
+
+.rule-settled-toggle {
+  min-height: 44px;
+}
+
+.rule-settled .rule-list {
+  margin-top: 8px;
+}
+
 .rule-body {
   margin-top: 4px;
 }

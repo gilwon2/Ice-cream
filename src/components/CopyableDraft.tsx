@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 
 type CopyableDraftProps = {
   title: string;
@@ -10,6 +10,8 @@ type CopyableDraftProps = {
   id?: string;
   /** true면 글이 아직 들어오는 중이라 편집과 복사를 막고 initialText를 그대로 보여준다. */
   streaming?: boolean;
+  /** 복사 버튼 옆에 둘 바로가기(문의처, 청년신문고 등) */
+  actions?: ReactNode;
 };
 
 export function CopyableDraft({
@@ -19,6 +21,7 @@ export function CopyableDraft({
   helper,
   id = "draft-text",
   streaming = false,
+  actions,
 }: CopyableDraftProps) {
   const [text, setText] = useState(initialText);
   const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
@@ -53,6 +56,7 @@ export function CopyableDraft({
         <button type="button" className="button button-secondary" onClick={copy} disabled={streaming}>
           {copyLabel}
         </button>
+        {actions}
         <span className="hint" role="status">
           {streaming && "AI가 초안을 쓰고 있어요. 다 쓰면 고치고 복사할 수 있어요."}
           {!streaming && copyState === "copied" && "복사했어요."}

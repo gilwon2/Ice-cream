@@ -47,3 +47,22 @@ export function orderConditions(conditions: RuleResult[]): RuleResult[] {
     )
     .map(({ condition }) => condition);
 }
+
+/**
+ * 결과 화면에서 먼저 보여줄 조건(미충족·확인 필요)과 접어 둘 조건(충족·해당 없음)으로 나눈다.
+ * 막힌 조건을 먼저 보게 하려는 표시용 분류라 판정은 바꾸지 않고, 각 목록은 orderConditions 순서를 따른다.
+ */
+export function splitConditions(conditions: RuleResult[]): {
+  attention: RuleResult[];
+  settled: RuleResult[];
+} {
+  const ordered = orderConditions(conditions);
+  const needsAttention = (condition: RuleResult) => {
+    const status = displayStatus(condition);
+    return status === "NOT_MET" || status === "UNKNOWN";
+  };
+  return {
+    attention: ordered.filter(needsAttention),
+    settled: ordered.filter((condition) => !needsAttention(condition)),
+  };
+}

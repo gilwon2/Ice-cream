@@ -331,6 +331,7 @@ export const NATIONAL_EMPLOYMENT: Policy = {
   applyMethod: "고용24 온라인 신청 또는 고용센터 방문",
   apply: { name: "고용24", url: "https://www.work24.go.kr" },
   contact: "고용노동부 고객상담센터 1350",
+  contactPhone: "1350",
   questions,
   questionGroups: [
     {
