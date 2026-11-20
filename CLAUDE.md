@@ -36,7 +36,9 @@ npm run build
 | `src/lib/diagnosis.ts` | 판정 결과 종합, 진행률, 최종 경로 |
 | `src/lib/drafts.ts` | 문의문·제안문 고정 템플릿 (AI 실패 시 대체용) |
 | `src/lib/ai/` | AI 호출. `config`(환경변수), `guard`(호출 제한·접근 코드·본문 검증), `context`, `explain`, `drafts`, `client`(타임아웃), `*Shared.ts`(브라우저와 공유하는 스키마) |
-| `src/app/api/` | `ai/session`, `explain`, `drafts` 라우트 |
+| `src/lib/policyApi/` | 온통청년 청년정책 API(비슷한 정책 추천 전용). `youthPolicy`(server-only: 요청·검증·필터·캐시·대체), `recommendationsShared`(브라우저와 공유하는 응답 스키마) |
+| `src/data/policyRecommendations.ts` | 온통청년 호출 실패 시 보여줄 추천 대체 목록 |
+| `src/app/api/` | `ai/session`, `explain`, `drafts`, `policy-recommendations` 라우트 |
 | `src/components/` | 화면 컴포넌트. 단계 화면은 `steps/`, 전체 흐름은 `PolicyHelper.tsx` |
 | `test/stubs/` | 테스트용 `server-only` 대체 모듈 |
 
@@ -64,7 +66,8 @@ npm run build
 
 ### 4. 비밀 정보
 - `ANTHROPIC_API_KEY`, `DEMO_ACCESS_CODE`는 서버 환경변수로만 읽는다(`src/lib/ai/config.ts`, `server-only`).
-- `NEXT_PUBLIC_` 접두사를 AI 관련 변수에 붙이지 않는다.
+- `YOUTH_POLICY_API_KEY`(온통청년)도 서버 환경변수로만 읽는다(`src/lib/policyApi/youthPolicy.ts`, `server-only`). 로그·오류 메시지에 요청 주소를 남길 때는 `maskUrl`로 `apiKeyNm` 값을 가린다.
+- `NEXT_PUBLIC_` 접두사를 AI·외부 API 키 변수에 붙이지 않는다.
 - `.env*` 파일은 커밋하지 않는다(`.env.example`만 예외, 값은 비워 둔다). 새 환경변수를 추가하면 `.env.example`과 README에 설명을 함께 추가한다.
 - AI 라우트 보호 순서(호출 제한 → 접근 코드 → 본문 검증)를 유지한다.
 
@@ -74,7 +77,9 @@ npm run build
 - 공고 원문으로 확인하지 못한 기준은 `verified: false`로 두며, 이 기준에 걸려도 미충족으로 확정하지 않고 "확인 필요"로 판정한다.
 - 규칙의 `plainText`, `howToCheck`는 사람이 검수한 문장이다. AI로 생성해서 바꾸지 않는다.
 - 기준 금액·날짜·연령을 바꾸면 `rules.test.ts`와 README의 정책 표를 함께 갱신한다.
-- 정책을 추가할 때는 `src/data/policies/`에 파일을 만들고 `index.ts`에 등록한 뒤, 판정 테스트를 추가한다.
+- 정책을 추가할 때는 `src/data/policies/`에 파일을 만들고 `index.ts`에 등록한 뒤, 판정 테스트를 추가한다. 추천용 분류(`recommendation`)도 함께 채운다.
+- 온통청년 API는 "비슷한 청년정책" 추천에만 쓰고 판정에 쓰지 않는다. 응답의 연령·소득 필드나 설명 글로 판정하지 않고, API 데이터를 AI 프롬프트에 넣지 않는다.
+- 온통청년 API 요청에는 사용자 입력값(생년월일, 소득, 가구원 수, 거주지 등)을 넣지 않는다. 정책의 분야만 보내며 `zipCd`도 쓰지 않는다. `youthPolicy.test.ts`가 이를 검사한다.
 
 ## 화면·문구 규칙
 

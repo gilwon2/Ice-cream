@@ -479,4 +479,11 @@ export const YOUTH_RENT: Policy = {
     },
   ],
   advisories: [],
+  recommendation: {
+    lclsfNm: "주거",
+    mclsfNm: "전월세 및 주거급여 지원",
+    mclsfQuery: "전월세",
+    // 국토교통부 청년월세 지원과 그 한시 특별지원. "구미형 청년월세 지원사업" 같은 지자체 자체 사업은 남긴다.
+    samePolicyNames: ["청년월세지원", "청년월세한시특별지원", "청년월세특별지원"],
+  },
 };
