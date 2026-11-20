@@ -1,19 +1,21 @@
 import type { Policy } from "@/data/policies";
-import type { Diagnosis, ProgressItem } from "@/lib/diagnosis";
+import type { Diagnosis } from "@/lib/diagnosis";
+import {
+  eligibilityItems,
+  progressDescription,
+  progressSummary,
+  STATUS_LABEL,
+  type EligibilityItem,
+} from "@/lib/resultSummary";
 import { formatIsoDate } from "@/lib/rules";
 import { ApplyAction } from "./ApplyAction";
 import { SourceLink } from "./SourceLink";
 
-const STATE_LABEL: Record<ProgressItem["state"], string> = {
-  done: "완료",
-  blocked: "미충족으로 보임",
-  todo: "남음",
-};
-
-const STATE_ICON: Record<ProgressItem["state"], string> = {
-  done: "✓",
-  blocked: "!",
-  todo: "",
+/** 자격 상태를 기존 진행 목록 스타일(is-done, is-blocked, is-unknown)에 맞춘다. */
+const ELIGIBILITY_STYLE: Record<EligibilityItem["status"], { className: string; icon: string }> = {
+  MET: { className: "is-done", icon: "✓" },
+  NOT_MET: { className: "is-blocked", icon: "!" },
+  UNKNOWN: { className: "is-unknown", icon: "?" },
 };
 
 type ProgressSidebarProps = {
@@ -23,39 +25,93 @@ type ProgressSidebarProps = {
   showProgress: boolean;
 };
 
+/**
+ * 진행 상황 카드. 자격 확인(개수만)과 신청 준비(서류 n개 중 m개)를 나눠 보여준다.
+ * 자격에 퍼센트를 쓰지 않아 미충족·확인 필요가 있는데 높은 숫자가 보이는 일이 없다.
+ */
 function ProgressCard({ policy, diagnosis }: { policy: Policy; diagnosis: Diagnosis }) {
+  const summary = progressSummary(diagnosis);
+  const { eligibility, documents } = summary;
+  const checked = new Set(
+    diagnosis.documents
+      .filter((document) => !diagnosis.missingDocuments.includes(document))
+      .map((document) => document.id),
+  );
+
   return (
     <section className="card sidebar-sticky" aria-labelledby="progress-title">
-      <div className="progress-head">
-        <h2 className="card-title" id="progress-title">
-          신청 준비 진행률
-        </h2>
-        <strong className="progress-value" aria-live="polite">
-          {diagnosis.percent}%
-        </strong>
-      </div>
-      <div
-        className={`meter meter-large${diagnosis.percent === 100 ? " is-complete" : ""}`}
-        role="progressbar"
-        aria-label="신청 준비 진행률"
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-valuenow={diagnosis.percent}
-      >
-        <span style={{ width: `${diagnosis.percent}%` }} />
+      <h2 className="card-title" id="progress-title">
+        진행 상황
+      </h2>
+      <p className="sr-only" aria-live="polite">
+        {progressDescription(summary)}
+      </p>
+
+      <div className="progress-group" data-testid="sidebar-eligibility">
+        <h3 className="progress-group-title">자격 확인</h3>
+        <p className="progress-counts">
+          <span className="is-met">
+            충족 <strong data-count="met">{eligibility.met}</strong>
+          </span>
+          <span className="is-not_met">
+            미충족 가능성 <strong data-count="notMet">{eligibility.notMet}</strong>
+          </span>
+          <span className="is-unknown">
+            확인 필요 <strong data-count="unknown">{eligibility.unknown}</strong>
+          </span>
+        </p>
+        <ul className="progress-list">
+          {eligibilityItems(diagnosis.conditions).map((item) => (
+            <li key={item.id} className={`progress-item ${ELIGIBILITY_STYLE[item.status].className}`}>
+              <span className="progress-icon" aria-hidden="true">
+                {ELIGIBILITY_STYLE[item.status].icon}
+              </span>
+              <span>{item.label}</span>
+              <span className="progress-state">{STATUS_LABEL[item.status]}</span>
+            </li>
+          ))}
+        </ul>
       </div>
 
-      <ul className="progress-list">
-        {diagnosis.items.map((item) => (
-          <li key={item.id} className={`progress-item is-${item.state}`}>
-            <span className="progress-icon" aria-hidden="true">
-              {STATE_ICON[item.state]}
-            </span>
-            <span>{item.label}</span>
-            <span className="progress-state">{STATE_LABEL[item.state]}</span>
-          </li>
-        ))}
-      </ul>
+      <div className="progress-group" data-testid="sidebar-documents">
+        <div className="progress-head">
+          <h3 className="progress-group-title">신청 준비</h3>
+          <span className="progress-doc-count">
+            서류 <strong data-count="docTotal">{documents.total}</strong>개 중{" "}
+            <strong data-count="docDone">{documents.done}</strong>개 완료
+          </span>
+        </div>
+        {documents.total > 0 && (
+          <div
+            className={`meter meter-large${documents.percent === 100 ? " is-complete" : ""}`}
+            role="progressbar"
+            aria-label="서류 준비"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={documents.percent}
+          >
+            <span style={{ width: `${documents.percent}%` }} />
+          </div>
+        )}
+        {documents.total > 0 ? (
+          <ul className="progress-list">
+            {diagnosis.documents.map((document) => {
+              const done = checked.has(document.id);
+              return (
+                <li key={document.id} className={`progress-item${done ? " is-done" : ""}`}>
+                  <span className="progress-icon" aria-hidden="true">
+                    {done ? "✓" : ""}
+                  </span>
+                  <span>{document.label}</span>
+                  <span className="progress-state">{done ? "완료" : "남음"}</span>
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <p className="muted progress-empty">지금 답으로는 준비할 서류가 없어요.</p>
+        )}
+      </div>
 
       <ApplyAction policy={policy} diagnosis={diagnosis} />
     </section>

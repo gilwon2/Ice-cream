@@ -629,12 +629,6 @@ textarea {
   gap: 12px;
 }
 
-.progress-value {
-  color: var(--blue);
-  font-size: 30px;
-  line-height: 1.2;
-}
-
 .meter {
   display: block;
   overflow: hidden;
@@ -711,6 +705,64 @@ textarea {
 .progress-item.is-blocked .progress-state {
   color: var(--danger);
   font-weight: 700;
+}
+
+.progress-item.is-unknown .progress-icon {
+  border-color: var(--warning);
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+.progress-item.is-unknown .progress-state {
+  color: var(--warning);
+  font-weight: 700;
+}
+
+/* 진행 상황 카드: 자격 확인과 신청 준비 두 묶음 */
+.progress-group {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.progress-group-title {
+  margin: 0;
+  font-size: 15px;
+}
+
+.progress-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.progress-counts .is-met strong {
+  color: var(--success);
+}
+
+.progress-counts .is-not_met strong {
+  color: var(--danger);
+}
+
+.progress-counts .is-unknown strong {
+  color: var(--warning);
+}
+
+.progress-doc-count {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.progress-doc-count strong {
+  color: var(--ink);
+}
+
+.progress-empty {
+  margin: 8px 0 16px;
+  font-size: 13px;
 }
 
 .facts {
@@ -1625,9 +1677,26 @@ input[type="number"]:disabled {
 }
 
 /* 요약 카드: 넓은 화면에서는 설명을 펼쳐 두고, 모바일에서는 접는다(아래 미디어 쿼리). */
-.result-summary-more {
+.result-summary-foot {
   display: none;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 4px 12px;
+}
+
+.result-summary-more {
+  flex: 1 1 auto;
+  min-width: 0;
   font-size: 14px;
+}
+
+/* 모든 결과 경로에서 보이는 작은 공식 신청 사이트 링크 */
+.result-official-link {
+  flex: none;
+  color: var(--blue-dark);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 .result-summary-more summary {
@@ -1669,10 +1738,11 @@ input[type="number"]:disabled {
     position: sticky;
     top: 0;
     z-index: 10;
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
+    display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 12px;
+    white-space: nowrap;
     height: var(--mobile-progress-height);
     padding: 0 16px;
     border-bottom: 1px solid var(--line);
@@ -1687,9 +1757,16 @@ input[type="number"]:disabled {
     color: var(--blue-dark);
   }
 
-  .mobile-progress-remaining {
+  .mobile-progress-sep {
     color: var(--muted);
-    font-weight: 500;
+  }
+
+  .mobile-progress-note {
+    overflow: hidden;
+    color: var(--warning);
+    font-size: 13px;
+    font-weight: 600;
+    text-overflow: ellipsis;
   }
 
 }
@@ -1717,8 +1794,22 @@ input[type="number"]:disabled {
     display: none;
   }
 
-  .result-summary-more {
-    display: block;
+  .result-summary-foot {
+    display: flex;
+  }
+
+  /* 펼치면 링크는 접기 줄 오른쪽에 그대로 두고 설명은 아래로 넓게 쓴다. */
+  .result-summary-foot:has(.result-summary-more[open]) {
+    flex-wrap: wrap;
+  }
+
+  .result-summary-foot:has(.result-summary-more[open]) .result-official-link {
+    order: -1;
+    margin-left: auto;
+  }
+
+  .result-summary-foot:has(.result-summary-more[open]) .result-summary-more {
+    flex-basis: 100%;
   }
 
   .result-count {
