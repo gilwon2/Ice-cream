@@ -1,4 +1,4 @@
-import { isConfirmedNotMet } from "@/lib/diagnosis";
+import { isConfirmedNotMet, type Diagnosis } from "@/lib/diagnosis";
 import type { RuleResult, RuleStatus } from "@/lib/rules";
 
 /**
@@ -33,6 +33,61 @@ export function countConditions(conditions: RuleResult[]): ConditionCounts {
     else if (status === "UNKNOWN") counts.unknown += 1;
   }
   return counts;
+}
+
+export type ProgressSummary = {
+  /** 자격 확인: 개수로만 보여준다. 미충족이 있는데 높은 퍼센트가 보이지 않도록 퍼센트를 두지 않는다. */
+  eligibility: ConditionCounts & { total: number };
+  /** 신청 준비: 퍼센트는 서류 준비에만 쓴다. */
+  documents: { done: number; total: number; percent: number };
+};
+
+/**
+ * 사이드바·모바일 상단 바·결과 요약 카드가 같은 숫자를 보이도록 하는 표시용 요약.
+ * 자격 개수는 결과 요약 카드와 같은 countConditions를 그대로 쓴다.
+ */
+export function progressSummary(
+  diagnosis: Pick<Diagnosis, "conditions" | "documents" | "missingDocuments">,
+): ProgressSummary {
+  const counts = countConditions(diagnosis.conditions);
+  const total = diagnosis.documents.length;
+  const done = total - diagnosis.missingDocuments.length;
+  return {
+    eligibility: { ...counts, total: counts.met + counts.notMet + counts.unknown },
+    documents: { done, total, percent: total === 0 ? 0 : Math.floor((done / total) * 100) },
+  };
+}
+
+/** 모바일 상단 바용 한 줄 요약. 예: "자격 8/9 · 서류 0/3" */
+export function compactProgressLabel(summary: ProgressSummary): string {
+  const { eligibility, documents } = summary;
+  return `자격 ${eligibility.met}/${eligibility.total} · 서류 ${documents.done}/${documents.total}`;
+}
+
+/** 화면 읽기 프로그램용 전체 요약 */
+export function progressDescription(summary: ProgressSummary): string {
+  const { eligibility, documents } = summary;
+  return (
+    `자격 확인: 충족 ${eligibility.met}개, 미충족 가능성 ${eligibility.notMet}개, 확인 필요 ${eligibility.unknown}개. ` +
+    `신청 준비: 서류 ${documents.total}개 중 ${documents.done}개 완료.`
+  );
+}
+
+export type EligibilityItem = {
+  id: string;
+  label: string;
+  status: Exclude<RuleStatus, "NOT_APPLICABLE">;
+};
+
+/** 사이드바 자격 확인 목록: 해당 없음은 빼고, 상태는 결과 화면과 같은 displayStatus를 쓴다. */
+export function eligibilityItems(conditions: RuleResult[]): EligibilityItem[] {
+  const items: EligibilityItem[] = [];
+  for (const condition of conditions) {
+    const status = displayStatus(condition);
+    if (status === "NOT_APPLICABLE") continue;
+    items.push({ id: condition.ruleId, label: condition.label, status });
+  }
+  return items;
 }
 
 const ORDER: Record<RuleStatus, number> = { NOT_MET: 0, UNKNOWN: 1, MET: 2, NOT_APPLICABLE: 3 };

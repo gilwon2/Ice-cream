@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type { Policy } from "@/data/policies";
 import type { Diagnosis, Route } from "@/lib/diagnosis";
 import { countConditions } from "@/lib/resultSummary";
@@ -74,24 +75,47 @@ export function ResultSummary({ policy, diagnosis }: ResultSummaryProps) {
         </li>
       </ul>
 
-      <details className="result-summary-more is-narrow">
-        <summary>결과 설명과 공고 정보 보기</summary>
-        <p className="result-summary-body">{body}</p>
-        <SummaryMeta policy={policy} />
-      </details>
+      {/* 모바일: 접기 줄 오른쪽에 공식 신청 사이트 링크를 같은 줄로 둬서 첫 화면 높이를 늘리지 않는다. */}
+      <div className="result-summary-foot is-narrow">
+        <details className="result-summary-more">
+          <summary>설명·공고 정보 보기</summary>
+          <p className="result-summary-body">{body}</p>
+          <SummaryMeta policy={policy} />
+        </details>
+        <OfficialSiteLink policy={policy} />
+      </div>
       <div className="is-wide">
-        <SummaryMeta policy={policy} />
+        <SummaryMeta policy={policy}>
+          {" · "}
+          <OfficialSiteLink policy={policy} />
+        </SummaryMeta>
       </div>
     </section>
   );
 }
 
-function SummaryMeta({ policy }: { policy: Policy }) {
+function SummaryMeta({ policy, children }: { policy: Policy; children?: ReactNode }) {
   return (
     <p className="result-meta">
       공고 기준일 {formatIsoDate(policy.announcement.publishedAt)} ·{" "}
       <SourceLink source={{ name: policy.announcement.title, url: policy.announcement.url }} /> ·
       정보 확인일 {formatIsoDate(policy.announcement.checkedAt)}
+      {children}
     </p>
+  );
+}
+
+/** 결과와 관계없이 모든 경로에서 보이는 작은 공식 신청 사이트 링크 */
+function OfficialSiteLink({ policy }: { policy: Policy }) {
+  return (
+    <a
+      className="result-official-link"
+      href={policy.apply.url}
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      공식 신청 사이트 <span aria-hidden="true">↗</span>
+      <span className="sr-only">({policy.apply.name}, 새 탭에서 열림)</span>
+    </a>
   );
 }

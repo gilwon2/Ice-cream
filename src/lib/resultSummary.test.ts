@@ -2,7 +2,17 @@ import { describe, expect, it } from "vitest";
 import { YOUTH_RENT } from "@/data/policies/youthRent";
 import type { RuleResult, RuleStatus } from "@/lib/rules";
 import { diagnose } from "./diagnosis";
-import { countConditions, displayStatus, orderConditions, splitConditions, splitVisible } from "./resultSummary";
+import {
+  compactProgressLabel,
+  countConditions,
+  displayStatus,
+  eligibilityItems,
+  orderConditions,
+  progressDescription,
+  progressSummary,
+  splitConditions,
+  splitVisible,
+} from "./resultSummary";
 
 const NOW = new Date("2026-11-19T12:00:00+09:00");
 
@@ -157,5 +167,102 @@ describe("splitVisible", () => {
   it("4개 이상이면 처음 3개만 보이고 나머지를 접는다", () => {
     expect(splitVisible([1, 2, 3, 4])).toEqual({ visible: [1, 2, 3], hidden: [4] });
     expect(splitVisible([1, 2, 3, 4, 5]).hidden).toHaveLength(2);
+  });
+});
+
+describe("progressSummary (자격 확인 / 신청 준비 분리)", () => {
+  const allDocuments = YOUTH_RENT.documents.map((document) => document.id);
+
+  function withDocuments(overrides: Record<string, string>, checkedDocumentIds: string[]) {
+    return diagnose({
+      policy: YOUTH_RENT,
+      answers: { ...RENT_OK, ...overrides },
+      checkedDocumentIds,
+      now: NOW,
+    });
+  }
+
+  it("자격 개수는 결과 요약 카드의 countConditions와 같다", () => {
+    const cases: Record<string, string>[] = [
+      {},
+      { ownsHouse: "yes" },
+      { movedIn: "no" },
+      { youthIncome: "" },
+    ];
+    for (const overrides of cases) {
+      const diagnosis = withDocuments(overrides, []);
+      const { eligibility } = progressSummary(diagnosis);
+      const counts = countConditions(diagnosis.conditions);
+      expect(eligibility).toMatchObject(counts);
+      expect(eligibility.total).toBe(counts.met + counts.notMet + counts.unknown);
+      expect(eligibilityItems(diagnosis.conditions)).toHaveLength(eligibility.total);
+    }
+  });
+
+  it("미충족이 있으면 서류를 모두 체크해 합친 진행률이 높아도 자격은 개수로만 보이고 퍼센트가 없다", () => {
+    const diagnosis = withDocuments({ ownsHouse: "yes" }, allDocuments);
+    // 판정용 합산 진행률은 그대로 높다(판정 로직은 바꾸지 않는다).
+    expect(diagnosis.route).toBe("INELIGIBLE");
+    expect(diagnosis.percent).toBeGreaterThanOrEqual(80);
+
+    const summary = progressSummary(diagnosis);
+    expect(summary.eligibility.notMet).toBeGreaterThanOrEqual(1);
+    expect(summary.eligibility).not.toHaveProperty("percent");
+    expect(summary.documents.percent).toBe(100);
+
+    const label = compactProgressLabel(summary);
+    expect(label).not.toContain("%");
+    expect(label).toBe(
+      `자격 ${summary.eligibility.met}/${summary.eligibility.total} · 서류 ${allDocuments.length}/${allDocuments.length}`,
+    );
+    expect(progressDescription(summary)).not.toContain("%");
+    expect(progressDescription(summary)).toContain(`미충족 가능성 ${summary.eligibility.notMet}개`);
+  });
+
+  it("확인 필요가 있어도 퍼센트 없이 확인 필요 개수로 보인다", () => {
+    const diagnosis = withDocuments({ youthIncome: "" }, allDocuments);
+    expect(diagnosis.route).toBe("NEEDS_INQUIRY");
+    const summary = progressSummary(diagnosis);
+    expect(summary.eligibility.unknown).toBeGreaterThanOrEqual(1);
+    expect(summary.eligibility.met).toBeLessThan(summary.eligibility.total);
+    expect(compactProgressLabel(summary)).not.toContain("%");
+  });
+
+  it("확인 중인 기준의 미충족은 확인 필요로 센다", () => {
+    const diagnosis = withDocuments({ movedIn: "no" }, []);
+    const summary = progressSummary(diagnosis);
+    expect(summary.eligibility.notMet).toBe(0);
+    expect(summary.eligibility.unknown).toBeGreaterThanOrEqual(1);
+    const item = eligibilityItems(diagnosis.conditions).find((entry) => entry.id === "rent-moved-in");
+    expect(item?.status).toBe("UNKNOWN");
+  });
+
+  it("해당 없음은 자격 목록과 개수에서 뺀다", () => {
+    const items = eligibilityItems([
+      result("a", "MET"),
+      result("b", "NOT_APPLICABLE"),
+      result("c", "NOT_MET", false),
+    ]);
+    expect(items.map((item) => [item.id, item.status])).toEqual([
+      ["a", "MET"],
+      ["c", "UNKNOWN"],
+    ]);
+  });
+
+  it("한 줄 요약 형식: 자격 충족/전체 · 서류 완료/전체", () => {
+    expect(
+      compactProgressLabel({
+        eligibility: { met: 8, notMet: 0, unknown: 1, total: 9 },
+        documents: { done: 0, total: 3, percent: 0 },
+      }),
+    ).toBe("자격 8/9 · 서류 0/3");
+  });
+
+  it("서류 퍼센트는 서류만으로 계산한다", () => {
+    const diagnosis = withDocuments({}, allDocuments.slice(0, 1));
+    const { documents } = progressSummary(diagnosis);
+    expect(documents.done).toBe(1);
+    expect(documents.total).toBe(diagnosis.documents.length);
+    expect(documents.percent).toBe(Math.floor((1 / documents.total) * 100));
   });
 });

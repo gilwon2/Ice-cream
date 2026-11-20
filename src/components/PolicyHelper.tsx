@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { POLICIES } from "@/data/policies";
 import { diagnose } from "@/lib/diagnosis";
+import { progressDescription, progressSummary } from "@/lib/resultSummary";
 import type { Answers } from "@/lib/rules";
 import { scrollToElement } from "@/lib/scrollToElement";
 import {
@@ -73,6 +74,7 @@ export function PolicyHelper() {
         : null,
     [policy, answers, checkedDocumentIds, now],
   );
+  const progress = diagnosis ? progressSummary(diagnosis) : null;
 
   // 단계가 바뀌면 새 패널 제목이 상단 진행률 바 바로 아래에 오도록 스크롤한다.
   useEffect(() => {
@@ -149,17 +151,32 @@ export function PolicyHelper() {
 
       {/* 모바일에서는 사이드바가 본문 아래로 내려가므로 진행률을 상단에 고정해 보여준다.
           정책을 고르는 STEP 01에서는 진행률이 의미 없어 보여주지 않는다. */}
-      {diagnosis && step >= 1 && (
-        <a className="mobile-progress" href="#progress-panel">
-          <span className="mobile-progress-text">
-            신청 준비 <strong>{diagnosis.percent}%</strong>
-            <span className="mobile-progress-remaining">
-              {diagnosis.remaining > 0 ? ` · 남은 항목 ${diagnosis.remaining}개` : " · 준비 완료"}
+      {progress && step >= 1 && (
+        <a
+          className="mobile-progress"
+          href="#progress-panel"
+          aria-label={`${progressDescription(progress)} 진행 상황으로 이동`}
+          data-testid="mobile-progress"
+        >
+          {/* 자격은 개수로만, 서류는 n/m으로 보여준다. 숫자는 compactProgressLabel과 같다. */}
+          <span className="mobile-progress-text" aria-hidden="true">
+            자격{" "}
+            <strong>
+              {progress.eligibility.met}/{progress.eligibility.total}
+            </strong>
+            <span className="mobile-progress-sep"> · </span>
+            서류{" "}
+            <strong>
+              {progress.documents.done}/{progress.documents.total}
+            </strong>
+          </span>
+          {progress.eligibility.notMet + progress.eligibility.unknown > 0 && (
+            <span className="mobile-progress-note" aria-hidden="true">
+              {progress.eligibility.notMet > 0
+                ? `미충족 가능성 ${progress.eligibility.notMet}`
+                : `확인 필요 ${progress.eligibility.unknown}`}
             </span>
-          </span>
-          <span className="meter" aria-hidden="true">
-            <span style={{ width: `${diagnosis.percent}%` }} />
-          </span>
+          )}
         </a>
       )}
 
