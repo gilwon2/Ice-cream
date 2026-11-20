@@ -58,3 +58,84 @@ npm run build
 | `src/lib/diagnosis.ts` | 규칙 판정, 진행률, 최종 경로, 질문 화면 구성 |
 | `src/lib/drafts.ts` | 정책 개선 제안문, 기관 문의문 템플릿 |
 | `src/components/PolicyHelper.tsx` | 화면 상태와 단계 흐름 |
+
+## 배포 및 환경변수
+
+Next.js 앱이라 Node.js 20.9.0 이상을 지원하는 곳이면 어디서나 실행할 수 있습니다. 별도 배포 설정 파일은 두지 않았습니다.
+
+```bash
+npm ci
+npm run build
+npm start          # 기본 포트 3000, -p 로 변경
+```
+
+Vercel 같은 호스팅을 쓰면 저장소를 연결한 뒤 아래 환경변수를 프로젝트 설정에 넣습니다. 로컬에서는 `.env.example`을 `.env.local`로 복사해 값을 채웁니다.
+
+| 변수 | 필수 | 기본값 | 설명 |
+|---|---|---|---|
+| `ANTHROPIC_API_KEY` | 아니요 | 없음 | Claude API 키. 비워 두면 AI 기능 없이 판정과 고정 템플릿 안내만 동작합니다 |
+| `ANTHROPIC_MODEL` | 아니요 | `claude-sonnet-5-5` | 사용할 모델 |
+| `DEMO_ACCESS_CODE` | AI를 쓰려면 예 | 없음 | AI 기능 시연용 접근 코드. 비워 두면 AI 라우트가 503으로 닫힙니다 |
+| `AI_RATE_LIMIT_PER_MINUTE` | 아니요 | `30` | IP당 1분 AI 요청 수. 1 이상의 정수만 받고, 잘못된 값이면 30으로 돌아갑니다 |
+
+- 모든 변수는 서버에서만 읽습니다(`src/lib/ai/config.ts`, `server-only`). `NEXT_PUBLIC_` 접두사를 붙이면 브라우저로 노출되므로 붙이지 않습니다.
+- `.env*` 파일은 커밋하지 않습니다. `.env.example`만 값을 비운 채로 저장소에 둡니다.
+- 호출 제한은 서버 프로세스 메모리에서 세므로 서버 인스턴스마다 따로 셉니다. 같은 네트워크(같은 IP)의 여러 사용자는 합쳐서 세므로, 심사처럼 동시 접속이 예상되면 값을 넉넉히 둡니다. 값을 바꾸면 서버를 다시 시작해야 합니다.
+- AI 라우트(`/api/ai/session`, `/api/explain`, `/api/drafts`)는 호출 제한 → 접근 코드 → 본문 검증 순서로 요청을 막습니다. AI가 실패하거나 8초 안에 응답하지 않으면 고정 템플릿과 기본 안내로 대체합니다.
+
+## 개인정보 처리
+
+이 앱은 회원가입이나 서버 저장 없이 동작하며, 외부 AI에는 개인정보를 보내지 않도록 설계했습니다.
+
+| 데이터 | 어디에 있나 | 외부 AI 전송 |
+|---|---|---|
+| 판정용 입력값(생년월일, 소득·재산 금액, 가구원 수, 병역 기간 등) | 브라우저 화면 상태(새로고침하면 사라짐). AI 설명을 요청할 때 판정을 다시 계산하도록 이 서버로 보내지만 저장하지 않습니다 | **보내지 않음** |
+| 조건별 판정 상태, 정책 기준, 공고 출처 | 서버가 입력값으로 다시 계산 | 보냄(AI 설명·초안 작성에 필요) |
+| 상황 메모(자유 입력) | 브라우저 화면 상태 | **보내지 않음.** 고정 템플릿에만 들어가고, AI 초안에는 `[상세 상황]` 자리표시자를 둡니다 |
+| AI가 만든 설명·초안 | 브라우저 `sessionStorage`(탭을 닫으면 사라짐) | — |
+| 접근 코드, AI 이용 동의 여부 | 브라우저 `sessionStorage` | 보내지 않음(서버에서 해시를 고정 시간에 비교) |
+| 요청 IP | 서버 메모리의 호출 제한 카운터(1분 단위로 세고 파일·DB에 저장하지 않음, 서버를 다시 시작하면 사라짐) | 보내지 않음 |
+
+- AI 요청 스키마는 `z.strictObject`로 정해 두어 이름, 연락처, 주소, 자유 메모 필드를 받지 않습니다. 사용자 입력값이 프롬프트에 들어가지 않는지 `src/lib/ai/privacy.test.ts`가 검사합니다.
+- AI 기능을 처음 쓸 때 무엇이 전송되는지 안내하고 동의를 받습니다. 입력 화면에는 이름·연락처·주민등록번호를 넣지 말라는 안내를 둡니다.
+- 문의문·제안문의 서명은 `[이름]`, `[연락처]` 자리표시자로 두며, 사용자가 복사해 직접 채운 뒤 공식 채널에 제출합니다. 앱이 기관에 자동으로 보내지 않습니다.
+- 판정은 입력값만 비교한 모의 판정입니다. 테스트·시연 데이터는 모두 가상 데이터입니다.
+
+## Credits / Licenses
+
+### 오픈소스
+
+| 이름 | 버전 | 라이선스 | 링크 | 용도 |
+|---|---|---|---|---|
+| Next.js | 16.4.6 | MIT | https://github.com/vercel/next.js | 웹 프레임워크(App Router) |
+| React, React DOM | 19.3.1 | MIT | https://github.com/facebook/react | 화면 구성 |
+| AI SDK (`ai`) | 7.0.177 | Apache-2.0 | https://github.com/vercel/ai | AI 호출·스트리밍 |
+| `@ai-sdk/anthropic` | 4.0.106 | Apache-2.0 | https://github.com/vercel/ai | Claude API 연결 |
+| Zod | 4.6.7 | MIT | https://github.com/colinhacks/zod | API 입력·AI 출력 검증 |
+| TypeScript | 5.9.3 | Apache-2.0 | https://github.com/microsoft/TypeScript | 타입 검사(개발용) |
+| ESLint, eslint-config-next | 9.39.5, 16.4.6 | MIT | https://github.com/eslint/eslint | 린트(개발용) |
+| Vitest, Vite | 4.1.12, 6.4.6 | MIT | https://github.com/vitest-dev/vitest | 테스트(개발용) |
+| `@types/node`, `@types/react`, `@types/react-dom` | — | MIT | https://github.com/DefinitelyTyped/DefinitelyTyped | 타입 정의(개발용) |
+| Playwright (`playwright-core`) | — | Apache-2.0 | https://github.com/microsoft/playwright | 개발 중 화면 확인(프로젝트 밖 임시 폴더에 설치, 앱 의존성 아님) |
+
+GPL 등 소스 공개 의무가 있는 라이선스는 쓰지 않습니다. 폰트와 이미지는 따로 포함하지 않으며, 글꼴은 사용자 기기에 설치된 글꼴(Pretendard, 맑은 고딕 등)을 씁니다.
+
+### 데이터 출처
+
+정책 기준과 서류 안내는 아래 공식 안내를 바탕으로 사람이 정리·검수했습니다. 각 자료의 저작권과 이용 조건은 해당 기관의 정책을 따릅니다.
+
+| 출처 | 링크 | 용도 |
+|---|---|---|
+| 복지로 공지 · 2026년 청년월세 지원 신청 안내 | https://m.bokjiro.go.kr/ssis-tem/cms/mob/customer/notice/1309500_1155.html | 청년월세 기준·신청 기간 |
+| 정부24 · 청년월세 지원 사업 안내(인천시) | https://www.gov.kr/portal/rcvfvrSvc/dtlEx/628000000155?administOrgCd=ALL | 확인 중인 기준(재산, 제외 대상, 서류) |
+| 고용24 · 국민취업지원제도 안내 | https://m.work24.go.kr/cm/c/f/1100/selecSystInfo.do?systId=SI00000316&systClId=SC00000206 | 국민취업지원제도 기준 |
+| 고용24 · 국민취업지원제도 신청 | https://www.work24.go.kr/ua/z/z/1300/selectEmssRqutIntro.do | 신청 경로 |
+| 보건복지부 · 기준 중위소득 고시 | https://www.mohw.go.kr/menu.es?mid=a10708010900 | 2026년 기준 중위소득 |
+| 대법원 전자가족관계등록시스템 | https://efamily.scourt.go.kr | 가족관계증명서 발급 안내 |
+
+### AI 도구
+
+| 이름 | 제공 | 용도 |
+|---|---|---|
+| Claude API (기본 `claude-sonnet-5-5`) | Anthropic | 앱 기능: 막힌 조건 쉬운 설명, 기관 문의문·개선 제안문 초안. 자격 판정에는 쓰지 않습니다 |
+| Claude Code | Anthropic | 개발: 코드 작성·리뷰·테스트 보조, 화면 확인 스크립트 작성 |

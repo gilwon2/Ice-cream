@@ -55,8 +55,8 @@ export function CopyableDraft({
         </button>
         <span className="hint" role="status">
           {streaming && "AI가 초안을 쓰고 있어요. 다 쓰면 고치고 복사할 수 있어요."}
-          {!streaming && copyState === "copied" && "복사했습니다."}
-          {!streaming && copyState === "failed" && "복사하지 못했습니다. 내용을 직접 선택해 복사해 주세요."}
+          {!streaming && copyState === "copied" && "복사했어요."}
+          {!streaming && copyState === "failed" && "복사하지 못했어요. 내용을 직접 선택해 복사해 주세요."}
         </span>
       </div>
       <p className="hint">{helper}</p>

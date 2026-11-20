@@ -27,7 +27,7 @@ export function ProgressSidebar({ policy, diagnosis }: ProgressSidebarProps) {
       <aside className="sidebar" id="progress-panel">
         <section className="card">
           <h2 className="card-title">신청 준비 진행률</h2>
-          <p className="muted">정책을 선택하면 조건과 진행률이 표시됩니다.</p>
+          <p className="muted">정책을 선택하면 조건과 진행률이 표시돼요.</p>
         </section>
       </aside>
     );
