@@ -3,6 +3,7 @@ import { z } from "zod";
 import { POST as sessionRoute } from "@/app/api/ai/session/route";
 import { buildAiContext, aiConditionRequestSchema } from "./context";
 import { clientIp, createRateLimiter, guardRequest, hasValidAccessCode } from "./guard";
+import { DEFAULT_AI_RATE_LIMIT_PER_MINUTE } from "./config";
 import { ACCESS_CODE_HEADER, encodeAccessCode } from "./shared";
 
 const CODE = "청년2026";
@@ -31,7 +32,7 @@ async function errorCode(result: Awaited<ReturnType<typeof guard>>) {
   return { status: result.response.status, code: (await result.response.json()).error.code };
 }
 
-describe("① 호출 제한 (IP별 1분 10회)", () => {
+describe("① 호출 제한 (제한기 동작, 한도 10회로 검사)", () => {
   it("10번까지 통과하고 11번째는 429와 Retry-After를 돌려준다", async () => {
     const limiter = createRateLimiter({ limit: 10, windowMs: 60_000 });
     for (let i = 0; i < 10; i++) {
@@ -144,12 +145,15 @@ describe("접근 코드 확인 라우트 (/api/ai/session)", () => {
     expect((await sessionRoute(sessionRequest("192.0.2.12", CODE))).status).toBe(503);
   });
 
-  it("같은 IP의 11번째 요청은 429다", async () => {
+  it("AI_RATE_LIMIT_PER_MINUTE가 없으면 같은 IP의 31번째 요청이 429다", async () => {
     vi.stubEnv("DEMO_ACCESS_CODE", CODE);
+    const limit = DEFAULT_AI_RATE_LIMIT_PER_MINUTE;
     const statuses = [];
-    for (let i = 0; i < 11; i++) statuses.push((await sessionRoute(sessionRequest("192.0.2.13", CODE))).status);
-    expect(statuses.slice(0, 10).every((status) => status === 200)).toBe(true);
-    expect(statuses[10]).toBe(429);
+    for (let i = 0; i <= limit; i++) {
+      statuses.push((await sessionRoute(sessionRequest("192.0.2.13", CODE))).status);
+    }
+    expect(statuses.slice(0, limit).every((status) => status === 200)).toBe(true);
+    expect(statuses[limit]).toBe(429);
   });
 });
 

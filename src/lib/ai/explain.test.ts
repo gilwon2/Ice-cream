@@ -19,7 +19,12 @@ import { buildExplainRequest, explainRequestSchema, type ExplainRequest } from "
 import { ACCESS_CODE_HEADER, encodeAccessCode } from "./shared";
 
 const NOW = new Date("2026-11-19T12:00:00+09:00");
-const config: AiConfig = { apiKey: "test-key", model: "claude-sonnet-5-5", accessCode: "demo" };
+const config: AiConfig = {
+  apiKey: "test-key",
+  model: "claude-sonnet-5-5",
+  accessCode: "demo",
+  rateLimitPerMinute: 30,
+};
 
 const rule = (id: string) => {
   const found = [...YOUTH_RENT.rules, ...NATIONAL_EMPLOYMENT.rules].find((item) => item.id === id);
