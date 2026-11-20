@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { POLICIES } from "@/data/policies";
 import { diagnose } from "@/lib/diagnosis";
+import { aiStatusText } from "./explainShared";
 
 const POLICY_IDS = POLICIES.map((policy) => policy.id) as [string, ...string[]];
 
@@ -35,7 +36,12 @@ export const aiConditionRequestSchema = z
 
 export type AiConditionRequest = z.infer<typeof aiConditionRequestSchema>;
 
-/** AI에 보내는 정보. 판정 결과만 담고, 입력 원값(생년월일 등)과 메모는 담지 않는다. */
+/**
+ * AI에 보내는 정보. 판정 결과만 담는다.
+ * 사용자 입력에서 나온 값(출생연도, 만 나이, 금액, 병역 개월 수, 가구원 수)과 메모는 담지 않는다.
+ * - statusText: 화면용 reason("2001년생은 …") 대신 상태별 고정 문장
+ * - criterion: 입력값(가구원 수)으로 계산한 기준이 아니라 공고 기준 문구(rule.criterion)
+ */
 export type AiContext = {
   policy: { id: string; name: string; benefit: string };
   route: string;
@@ -45,7 +51,7 @@ export type AiContext = {
     label: string;
     status: string;
     criterion: string;
-    reason: string;
+    statusText: string;
     verified: boolean;
   }>;
   missingDocuments: string[];
@@ -78,8 +84,8 @@ export function buildAiContext(request: AiConditionRequest, now: Date): AiContex
         ruleId: condition.ruleId,
         label: condition.label,
         status: condition.status,
-        criterion: condition.evidence.criterion,
-        reason: condition.reason,
+        criterion: condition.criterion,
+        statusText: aiStatusText(condition.status, condition.verified),
         verified: condition.verified,
       })),
     missingDocuments: diagnosis.missingDocuments.map((document) => document.label),

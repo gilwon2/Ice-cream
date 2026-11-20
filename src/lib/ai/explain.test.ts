@@ -3,12 +3,14 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { POST as explainRoute } from "@/app/api/explain/route";
 import { YOUTH_RENT } from "@/data/policies/youthRent";
 import { NATIONAL_EMPLOYMENT } from "@/data/policies/nationalEmployment";
-import { ruleInputQuestionIds, UNKNOWN_ANSWER } from "@/lib/rules";
+import { evaluationContext } from "@/lib/diagnosis";
+import { previewOutcomes, ruleInputQuestionIds, UNKNOWN_ANSWER } from "@/lib/rules";
 import type { AiConfig } from "./config";
 import type { AiGenerate, AiGenerateArgs } from "./client";
 import {
   EXPLAIN_SYSTEM_PROMPT,
   NOT_IN_SOURCE_REPLY,
+  aiPreviewReason,
   buildExplainGrounding,
   explainRule,
   validateExplanation,
@@ -81,16 +83,38 @@ describe("요청 범위", () => {
 });
 
 describe("근거 (프롬프트)", () => {
-  it("규칙의 쉬운 뜻, 확인 방법, 입력값, 비교 기준, 답별 결과, 출처만 담는다", () => {
+  it("규칙의 쉬운 뜻, 확인 방법, 입력 상태, 현재 판정, 답별 결과, 출처만 담는다", () => {
     const { text } = buildExplainGrounding(parentIncomeRequest, NOW);
     const target = rule("rent-parent-income");
     expect(text).toContain(target.plainText);
     for (const step of target.howToCheck) expect(text).toContain(step);
-    expect(text).toContain("- 생년월일: 만 31세 (1995년생)");
+    // 입력값(만 31세, 1995년생) 대신 입력 상태와 판정 상태 고정 문장만 담는다.
+    expect(text).toContain("- 생년월일: 입력함");
     expect(text).toContain("- 원가구 월소득 합계: 모르겠어요");
+    expect(text).toContain("- 부모님을 포함한 원가구 가구원 수: 미입력");
+    expect(text).toContain("[현재 판정] 해당 없음");
+    expect(text).toContain(`기준: ${target.criterion}`);
     expect(text).toContain("- 해당 없음: 해당 없음 (만 30세 이상이거나");
+    // 사용자 가구원 수 대신 기준표의 1~7인 가구를 모두 미리보기로 담는다.
+    expect(text).toContain("- 1인 가구, 월 ");
+    expect(text).toContain("- 7인 가구, 월 ");
     expect(text).toContain("복지로 공지 · 2026년 청년월세 지원 신청 안내 (2026.03.20)");
     expect(text).toContain("보건복지부 · 기준 중위소득");
+  });
+
+  it("AI용 미리보기 문장에서 예시 금액의 '입력한'을 '예:'로 바꾸고, 화면 문장은 그대로 둔다", () => {
+    expect(aiPreviewReason("입력한 256만 4,238원은 기준 이내로 보여요.")).toBe("예: 256만 4,238원은 기준 이내로 보여요.");
+    // 숫자가 아닌 곳의 '입력한'은 사용자 값이 아니므로 그대로 둔다.
+    expect(aiPreviewReason("입력한 상황에는 해당하지 않는 조건이에요.")).toBe("입력한 상황에는 해당하지 않는 조건이에요.");
+
+    const { text } = buildExplainGrounding(parentIncomeRequest, NOW);
+    expect(text).toContain("(예: 256만 4,238원은 기준 이내로 보여요.)");
+    expect(text).not.toMatch(/입력한 \d/);
+
+    // 화면(③ 답에 따라 달라지는 결과)이 쓰는 rules 엔진 문장은 바뀌지 않는다.
+    const target = rule("rent-parent-income");
+    const screen = previewOutcomes(target, evaluationContext(YOUTH_RENT, { parentHouseholdSize: "1" }, NOW));
+    expect(screen.map((preview) => preview.reason)).toContain("입력한 256만 4,238원은 기준 이내로 보여요.");
   });
 
   it("생년월일 원값과 다른 질문의 답은 담지 않는다", () => {
@@ -111,24 +135,28 @@ describe("근거 (프롬프트)", () => {
     expect(EXPLAIN_SYSTEM_PROMPT).toContain("추측하지 않습니다");
     expect(EXPLAIN_SYSTEM_PROMPT).toContain("우회하는 방법");
     expect(EXPLAIN_SYSTEM_PROMPT).toContain(NOT_IN_SOURCE_REPLY);
+    // 가구 규모별 금액을 표처럼 나열하지 않게 한다.
+    expect(EXPLAIN_SYSTEM_PROMPT).toContain("한두 개 예시만");
+    expect(EXPLAIN_SYSTEM_PROMPT).toContain("답에 따라 달라지는 결과");
   });
 });
 
 describe("explainRule: 정상", () => {
   it("검증을 통과한 맞춤 설명을 돌려주고, 근거를 담은 프롬프트로 한 번만 부른다", async () => {
     const { generate, calls } = mockGenerate({
-      personalNote: "만 31세라서 부모님 소득은 보지 않아요. 원가구 월소득은 확인하지 않아도 돼요.",
+      personalNote: "지금 답으로는 해당 없는 조건이라 부모님 소득은 보지 않아요. 원가구 월소득은 확인하지 않아도 돼요.",
     });
     const result = await explainRule(parentIncomeRequest, { config, generate, now: NOW });
 
     expect(result).toEqual({
       ok: true,
-      personalNote: "만 31세라서 부모님 소득은 보지 않아요. 원가구 월소득은 확인하지 않아도 돼요.",
+      personalNote: "지금 답으로는 해당 없는 조건이라 부모님 소득은 보지 않아요. 원가구 월소득은 확인하지 않아도 돼요.",
     });
     expect(calls).toHaveLength(1);
     expect(calls[0].system).toBe(EXPLAIN_SYSTEM_PROMPT);
     expect(calls[0].prompt).toContain("[근거]");
-    expect(calls[0].prompt).toContain("만 31세 (1995년생)");
+    expect(calls[0].prompt).toContain("[현재 판정] 해당 없음");
+    expect(calls[0].prompt).not.toMatch(/31세|1995년생/);
   });
 
   it("근거에 없다는 정해진 답도 통과한다", async () => {
@@ -193,8 +221,13 @@ describe("explainRule: 출력 검증 실패", () => {
 
   it("근거에 있는 숫자는 쓸 수 있다", () => {
     const { text } = buildExplainGrounding(parentIncomeRequest, NOW);
-    expect(validateExplanation("만 31세라서 부모님 소득은 보지 않아요.", text)).toBe(true);
-    expect(validateExplanation("만 32세라서 부모님 소득은 보지 않아요.", text)).toBe(false);
+    expect(validateExplanation("만 30세 이상이면 부모님 소득은 보지 않아요.", text)).toBe(true);
+    expect(validateExplanation("만 32세 이상이면 부모님 소득은 보지 않아요.", text)).toBe(false);
+  });
+
+  it("사용자 나이는 근거에 없으므로 AI가 나이를 쓰면 버린다", () => {
+    const { text } = buildExplainGrounding(parentIncomeRequest, NOW);
+    expect(validateExplanation("만 31세라서 부모님 소득은 보지 않아요.", text)).toBe(false);
   });
 });
 
