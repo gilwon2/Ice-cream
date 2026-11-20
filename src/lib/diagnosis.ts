@@ -50,7 +50,7 @@ export function evaluationContext(policy: Policy, answers: Answers, now: Date): 
 }
 
 /** 확인되지 않은 기준의 미충족은 확정하지 않고 확인 필요로 본다. */
-function isConfirmedNotMet(condition: RuleResult): boolean {
+export function isConfirmedNotMet(condition: RuleResult): boolean {
   return condition.status === "NOT_MET" && condition.verified;
 }
 

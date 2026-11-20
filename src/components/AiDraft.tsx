@@ -5,6 +5,7 @@ import { browserSessionStorage } from "@/lib/ai/access";
 import { requestDraft, type DraftResult } from "@/lib/ai/draftsClient";
 import { draftCacheKey, fillSituation, type DraftRequest } from "@/lib/ai/draftsShared";
 import { createExplanationCache } from "@/lib/ai/explainClient";
+import { AiBadge } from "./AiBadge";
 import { useAiAccess } from "./AiAccessProvider";
 import { CopyableDraft } from "./CopyableDraft";
 
@@ -94,7 +95,7 @@ function AiDraftBody({
     return (
       <div className="ai-draft">
         <p className="callout callout-small ai-draft-notice">
-          <span className="ai-badge">AI</span>
+          <AiBadge />
           {AI_DRAFT_NOTICE}
         </p>
         {state.kind === "ready" && state.removed > 0 && (
@@ -123,7 +124,8 @@ function AiDraftBody({
   return (
     <div className="ai-draft">
       {state.kind === "failed" && <p className="hint ai-draft-fallback">{state.message}</p>}
-      <button type="button" className="button button-ghost button-small" onClick={startWithAccess}>
+      <button type="button" className="button button-primary ai-draft-start" onClick={startWithAccess}>
+        <AiBadge variant="inverse" />
         {buttonLabel}
       </button>
       <CopyableDraft

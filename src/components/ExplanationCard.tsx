@@ -10,9 +10,10 @@ import {
 } from "@/lib/ai/explainClient";
 import { buildExplainRequest, explainCacheKey, type ExplainRequest } from "@/lib/ai/explainShared";
 import { evaluationContext } from "@/lib/diagnosis";
+import { STATUS_LABEL } from "@/lib/resultSummary";
 import { previewOutcomes, type Answers, type Rule } from "@/lib/rules";
+import { AiBadge } from "./AiBadge";
 import { useAiAccess } from "./AiAccessProvider";
-import { STATUS_LABEL } from "./ConditionList";
 import { SourceLink } from "./SourceLink";
 
 export type ExplanationTarget = {
@@ -150,7 +151,7 @@ function AiNote({ request, now }: { request: ExplainRequest; now: Date }) {
   if (state.kind === "ready") {
     return (
       <p className="ai-note">
-        <span className="ai-badge">AI</span>
+        <AiBadge />
         {state.note}
       </p>
     );
@@ -167,7 +168,8 @@ function AiNote({ request, now }: { request: ExplainRequest; now: Date }) {
       <div className="ai-note-action">
         {state.kind === "failed" && <p className="hint">{state.message}</p>}
         <button type="button" className="button button-ghost button-small" onClick={startWithAccess}>
-          {state.kind === "failed" ? "접근 코드 다시 입력" : "내 상황에 맞춘 설명 보기 (AI)"}
+          <AiBadge />
+          {state.kind === "failed" ? "접근 코드 다시 입력" : "내 상황에 맞춘 설명 보기"}
         </button>
       </div>
     );

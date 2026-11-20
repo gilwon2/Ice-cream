@@ -702,19 +702,26 @@ textarea {
   font-weight: 600;
 }
 
-/* 결과 화면 */
-.result-banner {
+/* 결과 화면: 요약 카드 */
+.result-summary {
   display: grid;
-  gap: 4px;
+  gap: 12px;
   margin-top: 16px;
   padding: 18px;
   border-left: 5px solid;
   border-radius: 8px;
 }
 
-.result-banner strong {
+.result-summary-title {
+  display: block;
+  margin-top: 2px;
   font-size: 19px;
   line-height: 1.4;
+}
+
+.result-summary-body {
+  margin-top: 4px;
+  font-size: 15px;
 }
 
 .result-label {
@@ -722,24 +729,78 @@ textarea {
   font-weight: 700;
 }
 
-.result-banner.is-success {
+.result-summary.is-success {
   border-color: var(--success);
   background: var(--success-soft);
 }
 
-.result-banner.is-info {
+.result-summary.is-info {
   border-color: var(--blue);
   background: var(--blue-soft);
 }
 
-.result-banner.is-danger {
+.result-summary.is-danger {
   border-color: var(--danger);
   background: var(--danger-soft);
 }
 
-.result-banner.is-warning {
+.result-summary.is-warning {
   border-color: var(--warning);
   background: var(--warning-soft);
+}
+
+.result-counts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.result-count {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0 6px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.result-count strong {
+  font-size: 22px;
+  line-height: 1.2;
+}
+
+.result-count.is-met strong {
+  color: var(--success);
+}
+
+.result-count.is-not_met strong {
+  color: var(--danger);
+}
+
+.result-count.is-unknown strong {
+  color: var(--warning);
+}
+
+.result-summary .result-meta {
+  margin-top: 0;
+}
+
+/* 요약 카드 바로 아래 다음 행동 영역은 간격을 줄여 첫 화면에 들어오게 한다. */
+.result-action {
+  margin-top: 20px;
+  padding-top: 20px;
+}
+
+.result-action:focus {
+  outline: none;
 }
 
 .table-wrap {
@@ -961,6 +1022,35 @@ input[type="number"]:disabled {
   background: var(--background);
 }
 
+/* 접힌 카드: 조건명 + 상태 + 한 줄 이유만 보인다. */
+.rule-summary {
+  position: relative;
+  display: grid;
+  gap: 4px;
+  min-height: 44px;
+  padding-right: 28px;
+  list-style: none;
+  cursor: pointer;
+}
+
+.rule-summary::-webkit-details-marker {
+  display: none;
+}
+
+.rule-summary::after {
+  content: "▾";
+  position: absolute;
+  top: 0;
+  right: 0;
+  color: var(--blue-dark);
+  font-size: 18px;
+  line-height: 1.4;
+}
+
+.rule-row[open] > .rule-summary::after {
+  transform: rotate(180deg);
+}
+
 .rule-head {
   display: flex;
   flex-wrap: wrap;
@@ -977,8 +1067,18 @@ input[type="number"]:disabled {
 }
 
 .rule-reason {
-  margin-top: 6px;
+  display: block;
   font-size: 15px;
+}
+
+.rule-row:not([open]) .rule-reason {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.rule-body {
+  margin-top: 4px;
 }
 
 .rule-evidence {
@@ -1017,16 +1117,19 @@ input[type="number"]:disabled {
   font-size: 14px;
 }
 
-.rule-details summary {
-  min-height: 32px;
-  color: var(--blue-dark);
-  font-weight: 700;
-  cursor: pointer;
-}
-
 .rule-details p,
 .rule-details ul {
   margin: 6px 0 0;
+}
+
+.rule-details .rule-subtitle {
+  margin-top: 12px;
+  font-weight: 700;
+}
+
+.rule-ai-explain {
+  min-height: 44px;
+  margin-top: 12px;
 }
 
 .rule-details ul {
@@ -1203,6 +1306,31 @@ input[type="number"]:disabled {
   vertical-align: 1px;
 }
 
+/* 파란 버튼·남색 히어로처럼 어두운 바탕 위의 배지 */
+.ai-badge-inverse {
+  background: var(--surface);
+  color: var(--navy);
+}
+
+/* 버튼 안에서는 버튼의 gap이 간격을 맡는다. */
+.button .ai-badge {
+  margin-right: 0;
+}
+
+.hero .hero-ai {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  color: var(--surface);
+  font-weight: 700;
+}
+
+.hero-ai .ai-badge {
+  flex: none;
+  margin-right: 0;
+}
+
 .ai-note-action {
   margin-top: 8px;
 }
@@ -1220,8 +1348,8 @@ input[type="number"]:disabled {
   margin: 0 0 12px;
 }
 
-.ai-draft > .button-small {
-  margin-bottom: 12px;
+.ai-draft-start {
+  margin: 4px 0 12px;
 }
 
 .ai-draft-fallback {
