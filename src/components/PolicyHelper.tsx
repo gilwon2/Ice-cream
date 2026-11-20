@@ -5,6 +5,7 @@ import { POLICIES } from "@/data/policies";
 import { diagnose, type Blocker } from "@/lib/diagnosis";
 import type { Answers } from "@/lib/rules";
 import { AiAccessProvider } from "./AiAccessProvider";
+import { AiBadge } from "./AiBadge";
 import { ProgressSidebar } from "./ProgressSidebar";
 import { Stepper } from "./Stepper";
 import { BlockerStep } from "./steps/BlockerStep";
@@ -40,6 +41,12 @@ export function PolicyHelper() {
     setViewedRuleIds((current) => (current.includes(ruleId) ? current : [...current, ruleId]));
   }, []);
   const [note, setNote] = useState("");
+
+  /** 설명 카드에서 고른 조건을 문의문에 넣고, 결과 화면이 문의문으로 옮기게 한다. */
+  const requestInquiry = useCallback((ruleId: string) => {
+    setInquiryRuleIds((current) => (current.includes(ruleId) ? current : [...current, ruleId]));
+    setFocusInquiry(true);
+  }, []);
 
   const panelRef = useRef<HTMLElement>(null);
   const isFirstRender = useRef(true);
@@ -102,6 +109,10 @@ export function PolicyHelper() {
         <div className="container">
           <h1>정책은 찾았는데, 신청에서 막혔나요?</h1>
           <p>신청을 중단한 이유를 확인하고, 지금 할 수 있는 다음 행동을 찾아보세요.</p>
+          <p className="hero-ai">
+            <AiBadge variant="inverse" />
+            AI가 막힌 조건을 쉽게 풀어 주고, 기관 문의문까지 써 드려요.
+          </p>
         </div>
       </div>
 
@@ -147,10 +158,7 @@ export function PolicyHelper() {
                 onNoteChange={setNote}
                 onPageChange={setSituationPage}
                 onRequestInquiry={(ruleId) => {
-                  setInquiryRuleIds((current) =>
-                    current.includes(ruleId) ? current : [...current, ruleId],
-                  );
-                  setFocusInquiry(true);
+                  requestInquiry(ruleId);
                   setStep(3);
                 }}
                 onExplanationViewed={markExplanationViewed}
@@ -175,6 +183,7 @@ export function PolicyHelper() {
                 viewedRuleIds={viewedRuleIds}
                 focusInquiry={focusInquiry}
                 onInquiryFocused={() => setFocusInquiry(false)}
+                onRequestInquiry={requestInquiry}
                 onBack={() => setStep(2)}
               />
             )}
