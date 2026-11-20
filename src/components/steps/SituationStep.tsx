@@ -1,4 +1,5 @@
 import { INQUIRY_TOPICS, type Policy, type RequiredDocument } from "@/data/policies";
+import { INPUT_PRIVACY_SHORT, INPUT_PRIVACY_TEXT } from "@/lib/ai/shared";
 import { questionPages, type Blocker } from "@/lib/diagnosis";
 import { primaryQuestionId, type Answers, type Question, type RuleResult } from "@/lib/rules";
 import { DocumentChecklist } from "../DocumentChecklist";
@@ -116,6 +117,8 @@ export function SituationStep({
         STEP 03 · {index + 1}/{pages.length}
       </p>
       <h2 className="panel-title">{current.title}</h2>
+      {/* 숫자를 입력하는 질문 페이지에서도 보이도록 STEP 3 상단에 한 번만 둔다. */}
+      <p className="privacy-note">{INPUT_PRIVACY_SHORT}</p>
 
       {current.kind === "questions" ? (
         <>
@@ -193,7 +196,9 @@ export function SituationStep({
               value={note}
               onChange={(event) => onNoteChange(event.target.value)}
             />
-            <p className="hint">이름, 연락처, 주민등록번호 같은 개인정보는 입력하지 마세요.</p>
+            <p className="hint">
+              이름, 연락처, 주민등록번호 같은 개인정보는 입력하지 마세요. {INPUT_PRIVACY_TEXT}
+            </p>
           </section>
         </>
       )}

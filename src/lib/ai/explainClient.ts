@@ -6,7 +6,10 @@ import {
   type ExplainResponse,
 } from "./explainShared";
 
-/** 브라우저에서 설명을 요청하고, 성공한 설명만 sessionStorage에 저장한다. */
+/**
+ * 브라우저에서 설명을 요청하고, 성공한 설명만 sessionStorage에 저장한다.
+ * 키는 규칙·입력 상태·판정 상태로 만들어 입력 원값은 저장하지 않는다(explainCacheKey).
+ */
 
 export type ExplanationCache = {
   get: (key: string) => string | null;
@@ -42,7 +45,7 @@ export type ExplanationResult =
   | { kind: "failed"; message: string; needsCode: boolean };
 
 /**
- * 같은 규칙·같은 조건 값이면 저장된 설명을 쓰고 서버를 부르지 않는다.
+ * 같은 규칙·같은 입력 상태·같은 판정이면 저장된 설명을 쓰고 서버를 부르지 않는다.
  * 접근 코드가 없거나 실패하면 예외 없이 결과 종류로 알려준다.
  */
 export async function requestExplanation(
@@ -51,9 +54,10 @@ export async function requestExplanation(
     store,
     cache,
     fetchImpl = fetch,
-  }: { store: AiAccessStore; cache: ExplanationCache; fetchImpl?: typeof fetch },
+    now = new Date(),
+  }: { store: AiAccessStore; cache: ExplanationCache; fetchImpl?: typeof fetch; now?: Date },
 ): Promise<ExplanationResult> {
-  const key = explainCacheKey(request);
+  const key = explainCacheKey(request, now);
   const cached = cache.get(key);
   if (cached) return { kind: "ready", note: cached, cached: true };
   if (!store.hasConsent() || !store.getAccessCode()) return { kind: "no_access" };

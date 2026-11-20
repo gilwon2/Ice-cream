@@ -269,6 +269,16 @@ main:focus {
   font-size: 13px;
 }
 
+/* STEP 3 상단의 저장·전송 안내. 경고가 아니라 안심 안내라 파란 톤을 쓴다. */
+.privacy-note {
+  margin: 4px 0 16px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--blue-soft);
+  color: var(--navy);
+  font-size: 13px;
+}
+
 .tag {
   display: inline-block;
   margin-top: 6px;

@@ -182,10 +182,11 @@ describe("AI로 보내는 정보 제한", () => {
 
     expect(serialized).not.toMatch(/2001-05-10|2001\.05\.10|05-10/);
     expect(Object.keys(context)).toEqual(["policy", "route", "application", "conditions", "missingDocuments"]);
-    expect(context.conditions.find((item) => item.ruleId === "rent-age")).toMatchObject({
-      status: "MET",
-      reason: "2001년생은 기준(1991~2007년생) 안으로 보여요.",
-    });
+    // 화면용 reason("2001년생은 …") 대신 상태별 고정 문장을 보낸다.
+    const age = context.conditions.find((item) => item.ruleId === "rent-age");
+    expect(age).toMatchObject({ status: "MET", statusText: "기준 안으로 보임" });
+    expect(age).not.toHaveProperty("reason");
+    expect(serialized).not.toContain("2001년생");
     // 기혼이라 원가구 조건은 해당 없음이고 AI에도 보내지 않는다.
     expect(context.conditions.map((item) => item.ruleId)).not.toContain("rent-parent-income");
     expect(context.missingDocuments).not.toContain("통장 사본");

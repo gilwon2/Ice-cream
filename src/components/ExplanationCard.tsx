@@ -67,8 +67,8 @@ export function ExplanationCard({
         <h4>① 쉬운 뜻</h4>
         <p>{rule.plainText}</p>
         {!rule.verified && <span className="tag">확인 중인 기준</span>}
-        {/* 같은 규칙·같은 조건 값이면 같은 키라 저장된 설명을 다시 쓴다. */}
-        <AiNote key={explainCacheKey(request)} request={request} />
+        {/* 같은 규칙·같은 입력 상태·같은 판정이면 같은 키라 저장된 설명을 다시 쓴다. */}
+        <AiNote key={explainCacheKey(request, now)} request={request} now={now} />
       </div>
 
       <div className="explain-block">
@@ -116,13 +116,13 @@ export function ExplanationCard({
 type NoteState = { kind: "loading" } | ExplanationResult;
 
 /** AI 맞춤 설명 한 줄. 어떤 경우에도 빈칸을 남기지 않는다. */
-function AiNote({ request }: { request: ExplainRequest }) {
+function AiNote({ request, now }: { request: ExplainRequest; now: Date }) {
   const { store, ensureAiAccess } = useAiAccess();
   const cache = useMemo(() => createExplanationCache(browserSessionStorage), []);
-  // 카드는 조건 값이 바뀌면 key가 바뀌어 새로 만들어지므로 처음 받은 요청만 쓴다.
+  // 입력 상태나 판정이 바뀌면 key가 바뀌어 새로 만들어지므로 처음 받은 요청만 쓴다.
   const [fixedRequest] = useState(request);
   const [state, setState] = useState<NoteState>(() => {
-    const cached = cache.get(explainCacheKey(request));
+    const cached = cache.get(explainCacheKey(request, now));
     if (cached) return { kind: "ready", note: cached, cached: true };
     return store.hasConsent() && store.getAccessCode() ? { kind: "loading" } : { kind: "no_access" };
   });
@@ -131,7 +131,7 @@ function AiNote({ request }: { request: ExplainRequest }) {
   useEffect(() => {
     if (state.kind !== "loading") return;
     let active = true;
-    requestExplanation(fixedRequest, { store, cache }).then((result) => {
+    requestExplanation(fixedRequest, { store, cache, now }).then((result) => {
       if (active) setState(result);
     });
     return () => {
