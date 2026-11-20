@@ -2,6 +2,7 @@ import type { Policy } from "@/data/policies";
 import type { Diagnosis, Route } from "@/lib/diagnosis";
 import { countConditions } from "@/lib/resultSummary";
 import { formatIsoDate } from "@/lib/rules";
+import { ApplyAction } from "./ApplyAction";
 import { SourceLink } from "./SourceLink";
 
 const ROUTE_COPY: Record<Route, { tone: string; label: string; title: string; body: string }> = {
@@ -86,6 +87,14 @@ export function ResultSummary({ policy, diagnosis, onAction }: ResultSummaryProp
       >
         {ROUTE_ACTION[diagnosis.route]} <span aria-hidden="true">↓</span>
       </button>
+
+      {/* 모바일에서는 사이드바의 신청하기 버튼이 맨 아래에 있으므로 요약 카드에도 보여준다.
+          READY는 바로 아래 신청 영역에 같은 버튼이 있어 넣지 않는다. 데스크톱에서는 CSS로 숨긴다. */}
+      {diagnosis.route !== "READY" && (
+        <div className="summary-apply">
+          <ApplyAction policy={policy} diagnosis={diagnosis} />
+        </div>
+      )}
 
       <p className="result-meta">
         공고 기준일 {formatIsoDate(policy.announcement.publishedAt)} ·{" "}

@@ -39,7 +39,7 @@ const questions: Question[] = [
     help: "군 복무 등 병역의무 이행 기간만큼 연령 기준이 늘어나요(최대 만 37세). 없으면 0을 입력하세요.",
     unit: "개월",
     integer: true,
-    placeholder: "18",
+    placeholder: "예: 18",
     allowUnknown: true,
     appliesWhen: { birthDateQuestion: "birthDate", ageAtLeast: 35 },
   },
@@ -50,7 +50,7 @@ const questions: Question[] = [
     help: "주민등록등본에 함께 올라 있는 부모님·자녀와 본인을 합한 수예요. 생계와 주거를 같이하는 가족도 포함될 수 있어요.",
     unit: "명",
     integer: true,
-    placeholder: "3",
+    placeholder: "예: 3",
   },
   {
     id: "householdIncome",
@@ -58,7 +58,7 @@ const questions: Question[] = [
     label: "가구 월소득 합계",
     help: "가구원의 근로·사업·재산소득과 공적연금을 합한 월평균 금액이에요.",
     unit: "만 원",
-    placeholder: "400",
+    placeholder: "예: 400",
     allowUnknown: true,
   },
   {
@@ -67,7 +67,7 @@ const questions: Question[] = [
     label: "가구 재산 합계",
     help: "가구원의 토지·건물·주택·임차보증금·자동차 등을 합한 금액이에요.",
     unit: "만 원",
-    placeholder: "20000",
+    placeholder: "예: 20000",
     allowUnknown: true,
   },
   {
@@ -76,7 +76,7 @@ const questions: Question[] = [
     label: "본인 월소득",
     help: "아르바이트 등으로 지금 버는 본인의 월평균 소득이에요. 없으면 0을 입력하세요.",
     unit: "만 원",
-    placeholder: "0",
+    placeholder: "예: 0",
     allowUnknown: true,
   },
   {

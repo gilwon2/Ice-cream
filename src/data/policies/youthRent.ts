@@ -116,7 +116,7 @@ const questions: Question[] = [
     help: "본인, 배우자, 자녀, 같은 주소에 사는 가족을 합한 수예요. 혼자 살면 1명이에요.",
     unit: "명",
     integer: true,
-    placeholder: "1",
+    placeholder: "예: 1",
   },
   {
     id: "youthIncome",
@@ -124,7 +124,7 @@ const questions: Question[] = [
     label: "청년가구 월소득 합계",
     help: "청년가구 구성원의 월평균 소득을 합한 금액이에요.",
     unit: "만 원",
-    placeholder: "150",
+    placeholder: "예: 150",
     allowUnknown: true,
   },
   {
@@ -133,7 +133,7 @@ const questions: Question[] = [
     label: "청년가구 재산 합계",
     help: "임차보증금, 예금 같은 재산을 합한 금액이에요.",
     unit: "만 원",
-    placeholder: "3000",
+    placeholder: "예: 3000",
     allowUnknown: true,
   },
   {
@@ -143,7 +143,7 @@ const questions: Question[] = [
     help: "청년가구 가구원 수에 부모님을 더한 수예요.",
     unit: "명",
     integer: true,
-    placeholder: "3",
+    placeholder: "예: 3",
     appliesWhen: PARENT_REVIEW,
   },
   {
@@ -152,7 +152,7 @@ const questions: Question[] = [
     label: "원가구 월소득 합계",
     help: "청년가구와 부모님의 월평균 소득을 모두 합한 금액이에요.",
     unit: "만 원",
-    placeholder: "450",
+    placeholder: "예: 450",
     allowUnknown: true,
     appliesWhen: PARENT_REVIEW,
   },
@@ -162,7 +162,7 @@ const questions: Question[] = [
     label: "원가구 재산 합계",
     help: "청년가구와 부모님의 재산을 모두 합한 금액이에요.",
     unit: "만 원",
-    placeholder: "30000",
+    placeholder: "예: 30000",
     allowUnknown: true,
     appliesWhen: PARENT_REVIEW,
   },

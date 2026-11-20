@@ -6,6 +6,7 @@ import { shouldShowInquiry, type Blocker, type Diagnosis, type Route } from "@/l
 import { buildDraftRequest } from "@/lib/ai/draftsShared";
 import { buildInquiryDraft, buildProposalDraft } from "@/lib/drafts";
 import type { Answers } from "@/lib/rules";
+import { scrollToElement } from "@/lib/scrollToElement";
 import { AiDraft } from "../AiDraft";
 import { ApplyAction } from "../ApplyAction";
 import { ConditionList } from "../ConditionList";
@@ -91,21 +92,20 @@ export function ResultStep({
   const showInquiry = shouldShowInquiry(blocker, route) || inquiryRuleIds.length > 0;
   const inquiryRef = useRef<HTMLElement>(null);
 
-  // 설명 카드에서 넘어왔으면 단계 이동 스크롤이 끝난 뒤 문의문으로 옮긴다.
+  // 설명 카드에서 넘어왔으면 패널 대신 문의문으로 바로 옮긴다.
+  // (PolicyHelper는 이때 패널 스크롤을 하지 않아 두 애니메이션이 서로 끊지 않는다.)
   useEffect(() => {
-    if (!focusInquiry) return;
-    const timer = window.setTimeout(() => {
-      inquiryRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-      inquiryRef.current?.focus({ preventScroll: true });
-      onInquiryFocused();
-    }, 120);
-    return () => window.clearTimeout(timer);
+    const target = inquiryRef.current;
+    if (!focusInquiry || !target) return;
+    target.focus({ preventScroll: true });
+    return scrollToElement(target, onInquiryFocused);
   }, [focusInquiry, onInquiryFocused]);
 
   const goToAction = () => {
     const target = document.getElementById(ACTION_TARGET[route]);
-    target?.scrollIntoView({ behavior: "smooth", block: "start" });
-    target?.focus({ preventScroll: true });
+    if (!target) return;
+    target.focus({ preventScroll: true });
+    scrollToElement(target);
   };
 
   const inquirySection = (

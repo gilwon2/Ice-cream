@@ -35,43 +35,10 @@ export function ProgressSidebar({ policy, diagnosis }: ProgressSidebarProps) {
 
   const { application } = diagnosis;
 
+  // 정책 정보 카드를 먼저 두고 진행률 카드만 sticky로 둔다. 스크롤하면 정책 정보는
+  // 위로 지나가고 진행률·신청 버튼은 따라오므로, 사이드바가 화면보다 길어도 잘리지 않는다.
   return (
     <aside className="sidebar" id="progress-panel">
-      <section className="card" aria-labelledby="progress-title">
-        <div className="progress-head">
-          <h2 className="card-title" id="progress-title">
-            신청 준비 진행률
-          </h2>
-          <strong className="progress-value" aria-live="polite">
-            {diagnosis.percent}%
-          </strong>
-        </div>
-        <div
-          className={`meter meter-large${diagnosis.percent === 100 ? " is-complete" : ""}`}
-          role="progressbar"
-          aria-label="신청 준비 진행률"
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={diagnosis.percent}
-        >
-          <span style={{ width: `${diagnosis.percent}%` }} />
-        </div>
-
-        <ul className="progress-list">
-          {diagnosis.items.map((item) => (
-            <li key={item.id} className={`progress-item is-${item.state}`}>
-              <span className="progress-icon" aria-hidden="true">
-                {STATE_ICON[item.state]}
-              </span>
-              <span>{item.label}</span>
-              <span className="progress-state">{STATE_LABEL[item.state]}</span>
-            </li>
-          ))}
-        </ul>
-
-        <ApplyAction policy={policy} diagnosis={diagnosis} />
-      </section>
-
       <section className="card" aria-labelledby="policy-info-title">
         <h2 className="card-title" id="policy-info-title">
           {policy.name}
@@ -105,6 +72,41 @@ export function ProgressSidebar({ policy, diagnosis }: ProgressSidebarProps) {
             </dd>
           </div>
         </dl>
+      </section>
+
+      <section className="card sidebar-sticky" aria-labelledby="progress-title">
+        <div className="progress-head">
+          <h2 className="card-title" id="progress-title">
+            신청 준비 진행률
+          </h2>
+          <strong className="progress-value" aria-live="polite">
+            {diagnosis.percent}%
+          </strong>
+        </div>
+        <div
+          className={`meter meter-large${diagnosis.percent === 100 ? " is-complete" : ""}`}
+          role="progressbar"
+          aria-label="신청 준비 진행률"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={diagnosis.percent}
+        >
+          <span style={{ width: `${diagnosis.percent}%` }} />
+        </div>
+
+        <ul className="progress-list">
+          {diagnosis.items.map((item) => (
+            <li key={item.id} className={`progress-item is-${item.state}`}>
+              <span className="progress-icon" aria-hidden="true">
+                {STATE_ICON[item.state]}
+              </span>
+              <span>{item.label}</span>
+              <span className="progress-state">{STATE_LABEL[item.state]}</span>
+            </li>
+          ))}
+        </ul>
+
+        <ApplyAction policy={policy} diagnosis={diagnosis} />
       </section>
     </aside>
   );
