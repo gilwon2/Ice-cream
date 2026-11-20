@@ -269,7 +269,7 @@ describe("서버 전용 코드 분리", () => {
     expect(offenders).toEqual([]);
   });
 
-  it(".env.example에는 네 변수의 이름만 있고 값과 NEXT_PUBLIC_ 변수는 없다", () => {
+  it(".env.example에는 다섯 변수의 이름만 있고 값과 NEXT_PUBLIC_ 변수는 없다", () => {
     const example = readFileSync(join(srcDir, "..", ".env.example"), "utf8");
     const entries = example
       .split(/\r?\n/)
@@ -279,6 +279,7 @@ describe("서버 전용 코드 분리", () => {
       "ANTHROPIC_MODEL=",
       "DEMO_ACCESS_CODE=",
       "AI_RATE_LIMIT_PER_MINUTE=",
+      "YOUTH_POLICY_API_KEY=",
     ]);
   });
 

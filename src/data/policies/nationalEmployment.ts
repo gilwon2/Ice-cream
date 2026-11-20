@@ -387,6 +387,13 @@ export const NATIONAL_EMPLOYMENT: Policy = {
       source: WORK24_INTRO,
     },
   ],
+  recommendation: {
+    lclsfNm: "일자리",
+    mclsfNm: "취업",
+    mclsfQuery: "취업",
+    samePolicyNames: ["국민취업지원제도"],
+    relevanceKeywords: ["취업", "구직", "일자리", "고용", "채용", "인턴", "직업"],
+  },
   alternative: {
     title: "II유형도 있어요 (이 화면에서는 판정하지 않아요)",
     body: [

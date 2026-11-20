@@ -12,6 +12,7 @@ import { ApplyAction } from "../ApplyAction";
 import { ConditionList } from "../ConditionList";
 import { DocumentChecklist } from "../DocumentChecklist";
 import { ResultSummary } from "../ResultSummary";
+import { SimilarPolicies } from "../SimilarPolicies";
 import { SourceLink } from "../SourceLink";
 
 /** 요약 카드의 주 버튼이 옮겨 갈 다음 행동 영역 */
@@ -274,6 +275,8 @@ export function ResultStep({
         이 결과는 공식 안내를 바탕으로 입력값만 비교한 모의 판정이에요. 실제 자격과 제출서류는 공식
         기관이 공적자료를 조회해 심사로 확정하므로 반드시 공식 기관에서 확인해 주세요.
       </p>
+
+      <SimilarPolicies policyId={policy.id} />
 
       <div className="actions">
         <button type="button" className="button button-ghost" onClick={onBack}>
